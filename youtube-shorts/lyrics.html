@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELEMENTAL // Lyric Visualizer</title>
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.1);
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff9d;
+            --neon-pink: #ff0055;
+            --neon-purple: #bc13fe;
+            --font-display: 'Courier New', monospace;
+            --font-body: system-ui, -apple-system, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: var(--font-body);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Background Effects */
+        .ambient-glow {
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at 50% 50%, rgba(0, 243, 255, 0.1), transparent 60%);
+            z-index: -1;
+            animation: pulse 4s infinite ease-in-out;
+        }
+
+        /* Main Container */
+        .stage {
+            width: 90%;
+            max-width: 1200px;
+            height: 80vh;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 2rem;
+            position: relative;
+        }
+
+        /* Lyric Display Area */
+        .lyric-canvas {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        .lyric-line {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .lyric-line.past {
+            opacity: 0.2;
+            transform: translateY(-20px) scale(0.9);
+            filter: blur(2px);
+        }
+
+        .lyric-line.future {
+            opacity: 0.1;
+            transform: translateY(20px) scale(0.9);
+            filter: blur(4px);
+        }
+
+        .lyric-line.active {
+            opacity: 1;
+            transform: translateY(0) scale(1.1);
+            z-index: 10;
+        }
+
+        /* The Element Tile */
+        .word-group {
+            display: flex;
+            gap: 2px;
+        }
+
+        .tile {
+            width: 60px;
+            height: 70px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .tile.is-element {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 15px rgba(0, 255, 157, 0.2);
+            background: rgba(0, 255, 157, 0.05);
+        }
+
+        .tile.is-element.rare {
+            border-color: var(--neon-purple);
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.2);
+            background: rgba(188, 19, 254, 0.05);
+        }
+
+        .tile .atomic-number {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            font-size: 0.6rem;
+            opacity: 0.7;
+            font-family: var(--font-display);
+        }
+
+        .tile .symbol {
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .tile .name {
+            font-size: 0.5rem;
+            text-transform: uppercase;
+            margin-top: 2px;
+            opacity: 0.8;
+            width: 100%;
+            text-align: center;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* Non-element letters */
+        .tile.text-only {
+            width: auto;
+            min-width: 30px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .tile.text-only .symbol {
+            font-size: 1.8rem;
+            color: #aaa;
+        }
+
+        /* Youtube Embed (Hidden but functional) */
+        #player-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 170px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            opacity: 0.8;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        #player-container:hover {
+            opacity: 1;
+        }
+
+        /* Controls */
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 200;
+        }
+
+        button {
+            background: var(--neon-blue);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .tile {
+                width: 40px;
+                height: 50px;
+            }
+
+            .tile .symbol {
+                font-size: 1.2rem;
+            }
+
+            .tile .name,
+            .tile .atomic-number {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="ambient-glow" id="glow"></div>
+
+    <div class="controls">
+        <button id="start-btn">Initialize System</button>
+    </div>
+
+    <div class="stage">
+        <div class="lyric-canvas" id="lyric-display">
+            <h1 style="font-weight: 300; letter-spacing: 5px;">AWAITING INPUT...</h1>
+        </div>
+    </div>
+
+    <div id="player-container">
+        <div id="player"></div>
+    </div>
+
+    <script>
+        // --- 1. THE PERIODIC TABLE DATABASE ---
+        const elements = {
+            h: { n: 1, name: 'Hydrogen' }, he: { n: 2, name: 'Helium' }, li: { n: 3, name: 'Lithium' },
+            be: { n: 4, name: 'Beryllium' }, b: { n: 5, name: 'Boron' }, c: { n: 6, name: 'Carbon' },
+            n: { n: 7, name: 'Nitrogen' }, o: { n: 8, name: 'Oxygen' }, f: { n: 9, name: 'Fluorine' },
+            ne: { n: 10, name: 'Neon' }, na: { n: 11, name: 'Sodium' }, mg: { n: 12, name: 'Magnesium' },
+            al: { n: 13, name: 'Aluminium' }, si: { n: 14, name: 'Silicon' }, p: { n: 15, name: 'Phosphorus' },
+            s: { n: 16, name: 'Sulfur' }, cl: { n: 17, name: 'Chlorine' }, k: { n: 19, name: 'Potassium' },
+            ca: { n: 20, name: 'Calcium' }, sc: { n: 21, name: 'Scandium' }, ti: { n: 22, name: 'Titanium' },
+            v: { n: 23, name: 'Vanadium' }, cr: { n: 24, name: 'Chromium' }, mn: { n: 25, name: 'Manganese' },
+            fe: { n: 26, name: 'Iron' }, co: { n: 27, name: 'Cobalt' }, ni: { n: 28, name: 'Nickel' },
+            cu: { n: 29, name: 'Copper' }, zn: { n: 30, name: 'Zinc' }, ga: { n: 31, name: 'Gallium' },
+            ge: { n: 32, name: 'Germanium' }, as: { n: 33, name: 'Arsenic' }, se: { n: 34, name: 'Selenium' },
+            br: { n: 35, name: 'Bromine' }, kr: { n: 36, name: 'Krypton' }, rb: { n: 37, name: 'Rubidium' },
+            sr: { n: 38, name: 'Strontium' }, y: { n: 39, name: 'Yttrium' }, zr: { n: 40, name: 'Zirconium' },
+            nb: { n: 41, name: 'Niobium' }, mo: { n: 42, name: 'Molybdenum' }, tc: { n: 43, name: 'Technetium' },
+            ru: { n: 44, name: 'Ruthenium' }, rh: { n: 45, name: 'Rhodium' }, pd: { n: 46, name: 'Palladium' },
+            ag: { n: 47, name: 'Silver' }, cd: { n: 48, name: 'Cadmium' }, in: { n: 49, name: 'Indium' },
+            sn: { n: 50, name: 'Tin' }, sb: { n: 51, name: 'Antimony' }, te: { n: 52, name: 'Tellurium' },
+            i: { n: 53, name: 'Iodine' }, xe: { n: 54, name: 'Xenon' }, cs: { n: 55, name: 'Cesium' },
+            ba: { n: 56, name: 'Barium' }, la: { n: 57, name: 'Lanthanum' }, ce: { n: 58, name: 'Cerium' },
+            pr: { n: 59, name: 'Praseodymium' }, nd: { n: 60, name: 'Neodymium' }, pm: { n: 61, name: 'Promethium' },
+            sm: { n: 62, name: 'Samarium' }, eu: { n: 63, name: 'Europium' }, gd: { n: 64, name: 'Gadolinium' },
+            tb: { n: 65, name: 'Terbium' }, dy: { n: 66, name: 'Dysprosium' }, ho: { n: 67, name: 'Holmium' },
+            er: { n: 68, name: 'Erbium' }, tm: { n: 69, name: 'Thulium' }, yb: { n: 70, name: 'Ytterbium' },
+            lu: { n: 71, name: 'Lutetium' }, hf: { n: 72, name: 'Hafnium' }, ta: { n: 73, name: 'Tantalum' },
+            w: { n: 74, name: 'Tungsten' }, re: { n: 75, name: 'Rhenium' }, os: { n: 76, name: 'Osmium' },
+            ir: { n: 77, name: 'Iridium' }, pt: { n: 78, name: 'Platinum' }, au: { n: 79, name: 'Gold' },
+            hg: { n: 80, name: 'Mercury' }, tl: { n: 81, name: 'Thallium' }, pb: { n: 82, name: 'Lead' },
+            bi: { n: 83, name: 'Bismuth' }, po: { n: 84, name: 'Polonium' }, at: { n: 85, name: 'Astatine' },
+            rn: { n: 86, name: 'Radon' }, fr: { n: 87, name: 'Francium' }, ra: { n: 88, name: 'Radium' },
+            ac: { n: 89, name: 'Actinium' }, th: { n: 90, name: 'Thorium' }, pa: { n: 91, name: 'Protactinium' },
+            u: { n: 92, name: 'Uranium' }, am: { n: 95, name: 'Americium' } // simplified list
+        };
+
+        // --- 2. SYNCED DATA (Imagine Dragons - Radioactive) ---
+        // Note: In a full app, you would fetch this JSON from a backend.
+        const songData = {
+            youtubeId: 'ktvTqknDobU',
+            lyrics: [
+                { time: 0, text: " " },
+                { time: 15.5, text: "I'm waking up to ash and dust" },
+                { time: 19.0, text: "I wipe my brow and I sweat my rust" },
+                { time: 22.5, text: "I'm breathing in the chemicals" },
+                { time: 29.5, text: "I'm breaking in, shaping up" },
+                { time: 33.0, text: "Then checking out on the prison bus" },
+                { time: 36.5, text: "This is it, the apocalypse" },
+                { time: 43.0, text: "I'm waking up, I feel it in my bones" },
+                { time: 47.0, text: "Enough to make my systems blow" },
+                { time: 50.5, text: "Welcome to the new age, to the new age" },
+                { time: 54.0, text: "Welcome to the new age, to the new age" },
+                { time: 57.5, text: "Whoa, oh, oh, oh, oh, whoa, oh, oh, oh" },
+                { time: 62.0, text: "I'm radioactive, radioactive" },
+                { time: 64.5, text: "Whoa, oh, oh, oh, oh, whoa, oh, oh, oh" },
+                { time: 69.0, text: "I'm radioactive, radioactive" },
+            ]
+        };
+
+        // --- 3. PARSING LOGIC ---
+
+        // Greedy algorithm to convert a string into periodic table elements
+        function elementalize(word) {
+            let i = 0;
+            const result = [];
+            const cleanWord = word.replace(/[^a-zA-Z]/g, ''); // Strip punctuation for matching
+
+            // Maintain original punctuation if possible (simplified for this demo to just handling raw letters)
+
+            while (i < cleanWord.length) {
+                let match = null;
+                let matchLen = 0;
+
+                // Check 2 chars
+                if (i + 1 < cleanWord.length) {
+                    const two = cleanWord.substring(i, i + 2).toLowerCase();
+                    if (elements[two]) {
+                        match = elements[two];
+                        matchLen = 2;
+                    }
+                }
+
+                // If no 2 char match, check 1 char
+                if (!match) {
+                    const one = cleanWord.substring(i, i + 1).toLowerCase();
+                    if (elements[one]) {
+                        match = elements[one];
+                        matchLen = 1;
+                    }
+                }
+
+                if (match) {
+                    // Add Element Tile
+                    result.push({
+                        type: 'element',
+                        symbol: cleanWord.substring(i, i + matchLen),
+                        data: match
+                    });
+                    i += matchLen;
+                } else {
+                    // Add plain text tile
+                    result.push({
+                        type: 'text',
+                        symbol: cleanWord.substring(i, i + 1)
+                    });
+                    i++;
+                }
+            }
+            return result;
+        }
+
+        function renderLyrics() {
+            const display = document.getElementById('lyric-display');
+            display.innerHTML = '';
+
+            songData.lyrics.forEach((line, index) => {
+                const lineEl = document.createElement('div');
+                lineEl.className = 'lyric-line future';
+                lineEl.id = `line-${index}`;
+
+                const words = line.text.split(' ');
+                words.forEach(word => {
+                    const wordGroup = document.createElement('div');
+                    wordGroup.className = 'word-group';
+
+                    const atoms = elementalize(word);
+
+                    atoms.forEach(atom => {
+                        const tile = document.createElement('div');
+
+                        if (atom.type === 'element') {
+                            tile.className = `tile is-element ${Math.random() > 0.8 ? 'rare' : ''}`;
+                            tile.innerHTML = `
+                                <span class="atomic-number">${atom.data.n}</span>
+                                <span class="symbol">${atom.symbol}</span>
+                                <span class="name">${atom.data.name}</span>
+                            `;
+                        } else {
+                            tile.className = 'tile text-only';
+                            tile.innerHTML = `<span class="symbol">${atom.symbol}</span>`;
+                        }
+                        wordGroup.appendChild(tile);
+                    });
+
+                    lineEl.appendChild(wordGroup);
+                });
+
+                display.appendChild(lineEl);
+            });
+        }
+
+        // --- 4. YOUTUBE & SYNC ENGINE ---
+
+        let player;
+        let activeLineIndex = -1;
+
+        // Load Youtube IFrame API
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            document.getElementById('start-btn').addEventListener('click', () => {
+                document.getElementById('start-btn').style.display = 'none';
+                initPlayer();
+            });
+        }
+
+        function initPlayer() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                videoId: songData.youtubeId,
+                playerVars: { 'autoplay': 1, 'controls': 1, 'enablejsapi': 1, 'origin': window.location.origin },
+                events: {
+                    'onReady': onPlayerReady,
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            renderLyrics();
+            event.target.playVideo();
+            requestAnimationFrame(syncLoop);
+        }
+
+        function syncLoop() {
+            if (!player || !player.getCurrentTime) return;
+
+            const time = player.getCurrentTime();
+            let currentIdx = -1;
+
+            // Find active line
+            for (let i = 0; i < songData.lyrics.length; i++) {
+                if (time >= songData.lyrics[i].time) {
+                    currentIdx = i;
+                } else {
+                    break;
+                }
+            }
+
+            if (currentIdx !== activeLineIndex) {
+                updateDisplay(currentIdx);
+                activeLineIndex = currentIdx;
+            }
+
+            requestAnimationFrame(syncLoop);
+        }
+
+        function updateDisplay(index) {
+            const lines = document.querySelectorAll('.lyric-line');
+
+            lines.forEach((line, i) => {
+                line.className = 'lyric-line'; // reset
+
+                if (i === index) {
+                    line.classList.add('active');
+                    // Scroll into view
+                    line.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                    // Trigger Glow Effect on Background
+                    const glow = document.getElementById('glow');
+                    glow.style.background = `radial-gradient(circle at 50% 50%, ${getRandomColor()}, transparent 60%)`;
+                } else if (i < index) {
+                    line.classList.add('past');
+                } else {
+                    line.classList.add('future');
+                }
+            });
+        }
+
+        function getRandomColor() {
+            const colors = ['rgba(0, 243, 255, 0.2)', 'rgba(0, 255, 157, 0.2)', 'rgba(188, 19, 254, 0.2)'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+    </script>
+</body>
+
+</html>

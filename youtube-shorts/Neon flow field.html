@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Flow Field | 60SecondDev</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Optional UI for video context */
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: monospace;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui">
+        // MOUSE_DOWN: ATTRACT<br>
+        // MOUSE_MOVE: FLOW
+    </div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        const particleCount = 3000; // High count for "fluid" look
+
+        // Interaction state
+        let mouse = { x: 0, y: 0, active: false, down: false };
+        let hue = 0;
+
+        // Setup Canvas
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Particle Class
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = 0;
+                this.vy = 0;
+                this.life = Math.random() * 100;
+                this.maxSpeed = 2 + Math.random() * 2;
+            }
+
+            update() {
+                // 1. Flow Field Logic (The Math Magic)
+                // Create a grid of angles based on position
+                const angle = (Math.cos(this.x * 0.005) + Math.sin(this.y * 0.005)) * Math.PI;
+
+                // 2. Physics
+                this.vx += Math.cos(angle) * 0.1;
+                this.vy += Math.sin(angle) * 0.1;
+
+                // 3. Mouse Interaction
+                if (mouse.active) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 200) {
+                        const force = (200 - dist) / 200;
+                        if (mouse.down) {
+                            // Implode (Black Hole)
+                            this.vx += (dx / dist) * force * 2;
+                            this.vy += (dy / dist) * force * 2;
+                        } else {
+                            // Explode / Disrupt
+                            this.vx -= (dx / dist) * force * 5;
+                            this.vy -= (dy / dist) * force * 5;
+                        }
+                    }
+                }
+
+                // Speed Limit
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > this.maxSpeed) {
+                    this.vx = (this.vx / speed) * this.maxSpeed;
+                    this.vy = (this.vy / speed) * this.maxSpeed;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Screen Wrap
+                if (this.x < 0) this.x = width;
+                if (this.x > width) this.x = 0;
+                if (this.y < 0) this.y = height;
+                if (this.y > height) this.y = 0;
+
+                // Trail decay
+                this.life--;
+                if (this.life < 0) this.reset();
+            }
+
+            draw() {
+                // Color based on global hue + individual speed
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                ctx.strokeStyle = `hsl(${hue + (speed * 20)}, 100%, 50%)`;
+                ctx.lineWidth = 1; // Thin lines for "hair" look
+
+                ctx.beginPath();
+                ctx.moveTo(this.x - this.vx * 2, this.y - this.vy * 2);
+                ctx.lineTo(this.x, this.y);
+                ctx.stroke();
+            }
+        }
+
+        // Initialize
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        // Input Handling
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+            mouse.active = true;
+            // Reset active timer to stop interaction when mouse stops
+            clearTimeout(mouse.timer);
+            mouse.timer = setTimeout(() => mouse.active = false, 500);
+        });
+
+        window.addEventListener('mousedown', () => mouse.down = true);
+        window.addEventListener('mouseup', () => mouse.down = false);
+
+        // Animation Loop
+        function animate() {
+            // TRAIL EFFECT: Do not clear completely. Fade out previous frames.
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // The lower the alpha, the longer the trails
+            ctx.fillRect(0, 0, width, height);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            hue += 0.5; // Cycle colors globally
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
