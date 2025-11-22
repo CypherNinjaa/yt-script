@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinite Physics Lab: Projectile Motion</title>
+    <style>
+        /* --- UI STYLING (Dark Mode & Tech Aesthetic) --- */
+        body {
+            background-color: #0f172a;
+            /* Slate 900 */
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            /* Desktop: Hidden. Mobile: Auto (handled in media query) */
+        }
+
+        h1 {
+            margin-top: 15px;
+            margin-bottom: 10px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        .badge {
+            font-size: 0.5em;
+            background: #38bdf8;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .lab-container {
+            position: relative;
+            display: flex;
+            gap: 20px;
+            margin-top: 5px;
+            height: 85vh;
+            width: 95vw;
+        }
+
+        /* The Canvas */
+        .canvas-wrapper {
+            position: relative;
+            flex-grow: 1;
+            border: 2px solid #38bdf8;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+            background-color: #1e293b;
+            /* Default Desktop Height is handled by flex-grow */
+        }
+
+        canvas {
+            display: block;
+            cursor: grab;
+            touch-action: none;
+            /* Prevent browser scroll on canvas */
+        }
+
+        canvas:active {
+            cursor: grabbing;
+        }
+
+        .camera-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid #475569;
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .icon-btn:hover {
+            background: #38bdf8;
+            color: black;
+        }
+
+        /* Side Panel */
+        .controls-panel {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            width: 340px;
+            min-width: 300px;
+            border: 1px solid #475569;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            color: #94a3b8;
+        }
+
+        .value-display {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #38bdf8;
+            cursor: pointer;
+            height: 30px;
+            /* Taller touch target */
+        }
+
+        .btn-main {
+            width: 100%;
+            padding: 12px;
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .btn-main:hover {
+            background-color: #7dd3fc;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #f87171;
+        }
+
+        /* Math Board */
+        .math-board {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .math-section {
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed #334155;
+        }
+
+        .math-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .math-title {
+            color: #94a3b8;
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .equation {
+            color: #cbd5e1;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .var {
+            color: #facc15;
+        }
+
+        .const {
+            color: #38bdf8;
+        }
+
+        .calc-val {
+            color: #4ade80;
+            font-weight: bold;
+            margin-left: auto;
+        }
+
+        .sub {
+            font-size: 0.7em;
+            vertical-align: sub;
+        }
+
+        .sup {
+            font-size: 0.7em;
+            vertical-align: super;
+        }
+
+        .drag-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0.7;
+            white-space: nowrap;
+        }
+
+        /* --- MOBILE RESPONSIVENESS --- */
+        @media (max-width: 850px) {
+            body {
+                height: auto;
+                /* Allow scrolling on body */
+                overflow-y: auto;
+                padding-bottom: 20px;
+            }
+
+            .lab-container {
+                flex-direction: column;
+                height: auto;
+                width: 95%;
+            }
+
+            .canvas-wrapper {
+                height: 50vh;
+                /* Fixed height for simulation */
+                min-height: 300px;
+                width: 100%;
+                flex-grow: 0;
+            }
+
+            .controls-panel {
+                width: 100%;
+                min-width: 0;
+                height: auto;
+                overflow: visible;
+                box-sizing: border-box;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>LAB <span style="font-weight:bold">PHYSICS</span> <span class="badge">v3.1 MOBILE</span></h1>
+
+    <div class="lab-container">
+        <!-- CANVAS WRAPPER -->
+        <div class="canvas-wrapper" id="canvasWrapper">
+            <canvas id="simCanvas"></canvas>
+
+            <div class="camera-controls">
+                <button class="icon-btn" onclick="resetCamera()" title="Reset Camera View">⟲ View</button>
+                <button class="icon-btn" id="btn-follow" onclick="toggleFollow()" title="Auto-Follow Ball"
+                    style="background:#38bdf8; color:black">Target: ON</button>
+            </div>
+
+            <div class="drag-hint">✨ Drag background to move</div>
+        </div>
+
+        <!-- CONTROLS SIDEBAR -->
+        <div class="controls-panel">
+            <div class="control-group">
+                <label>Velocity (v) <span id="val-speed" class="value-display">25 m/s</span></label>
+                <input type="range" id="speed" min="5" max="50" value="25">
+            </div>
+
+            <div class="control-group">
+                <label>Angle (θ) <span id="val-angle" class="value-display">45°</span></label>
+                <input type="range" id="angle" min="0" max="90" value="45">
+            </div>
+
+            <div class="control-group">
+                <label>Gravity (g) <span id="val-grav" class="value-display">9.8 m/s²</span></label>
+                <input type="range" id="gravity" min="1" max="25" step="0.1" value="9.8">
+            </div>
+
+            <button class="btn-main" onclick="fireCannon()">FIRE CANNON</button>
+            <button class="btn-main btn-danger" onclick="resetSim()">RESET ALL</button>
+
+            <!-- LIVE MATH BOARD -->
+            <div class="math-board">
+                <div class="math-title">Initial Components</div>
+                <div class="math-section">
+                    <div class="equation">
+                        <span>v<span class="sub">x</span> = v ⋅ cos(θ)</span>
+                        <span class="calc-val" id="math-vx-init">0.00</span>
+                    </div>
+                    <div class="equation">
+                        <span>v<span class="sub">y0</span> = v ⋅ sin(θ)</span>
+                        <span class="calc-val" id="math-vy-init">0.00</span>
+                    </div>
+                </div>
+
+                <div class="math-title">Real-Time Calculation (t = <span id="math-t" style="color:#fff">0.00</span>s)
+                </div>
+                <div class="math-section">
+                    <!-- Horizontal Pos -->
+                    <div class="equation">
+                        <span>x = v<span class="sub">x</span> ⋅ t</span>
+                    </div>
+                    <div class="equation" style="font-size:0.8em; color:#64748b">
+                        <span>x = <span id="calc-vx" class="const">0</span> ⋅ <span id="calc-tx"
+                                class="var">0</span></span>
+                        <span class="calc-val" id="math-x">0.00 m</span>
+                    </div>
+
+                    <!-- Vertical Pos -->
+                    <div class="equation" style="margin-top:8px">
+                        <span>y = v<span class="sub">y0</span>t - ½gt<span class="sup">2</span></span>
+                    </div>
+                    <div class="equation" style="font-size:0.8em; color:#64748b">
+                        <span>y = (<span id="calc-vy0" class="const">0</span>)(<span id="calc-ty" class="var">0</span>)
+                            - ½(<span id="calc-g" class="const">9.8</span>)(<span id="calc-ty2"
+                                class="var">0</span>)<span class="sup">2</span></span>
+                    </div>
+                    <div class="equation">
+                        <span style="visibility:hidden">result</span>
+                        <span class="calc-val" id="math-y">0.00 m</span>
+                    </div>
+                </div>
+
+                <div class="math-title">Vertical Velocity</div>
+                <div class="math-section">
+                    <div class="equation">
+                        <span>v<span class="sub">y</span> = v<span class="sub">y0</span> - gt</span>
+                        <span class="calc-val" id="math-vy-final">0.00 m/s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const wrapper = document.getElementById('canvasWrapper');
+
+        // --- CONFIG ---
+        const SCALE = 10;
+        const GRID_SIZE = 50;
+        const CANNON_X = 100;
+
+        // --- STATE ---
+        let width, height;
+        let camera = { x: 0, y: 0 };
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let cameraStart = { x: 0, y: 0 };
+        let autoFollow = true;
+
+        let ball = null;
+        let isSimulating = false;
+        let trail = [];
+        let time = 0;
+        let initPhysics = { v: 0, angle: 0, g: 0, vx: 0, vy0: 0 };
+
+        function resize() {
+            width = wrapper.clientWidth;
+            height = wrapper.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            if (!isDragging && !isSimulating) {
+                // On resize, re-center floor only if not actively doing something custom
+                camera.y = height - 100;
+            }
+            draw();
+        }
+        window.addEventListener('resize', resize);
+
+        // --- INPUT HANDLING (MOUSE) ---
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            dragStart = { x: e.clientX, y: e.clientY };
+            cameraStart = { x: camera.x, y: camera.y };
+            canvas.style.cursor = 'grabbing';
+            autoFollow = false;
+            updateFollowBtn();
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (isDragging) {
+                camera.x = cameraStart.x + (e.clientX - dragStart.x);
+                camera.y = cameraStart.y + (e.clientY - dragStart.y);
+                draw();
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; canvas.style.cursor = 'grab'; });
+
+        // --- INPUT HANDLING (TOUCH) ---
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault(); // Stop page scroll
+            isDragging = true;
+            const touch = e.touches[0];
+            dragStart = { x: touch.clientX, y: touch.clientY };
+            cameraStart = { x: camera.x, y: camera.y };
+            autoFollow = false;
+            updateFollowBtn();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', e => {
+            if (isDragging) {
+                e.preventDefault(); // Stop page scroll
+                const touch = e.touches[0];
+                camera.x = cameraStart.x + (touch.clientX - dragStart.x);
+                camera.y = cameraStart.y + (touch.clientY - dragStart.y);
+                draw();
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => { isDragging = false; });
+
+
+        function fireCannon() {
+            if (isSimulating) return;
+
+            const v = parseFloat(document.getElementById('speed').value);
+            const angleDeg = parseFloat(document.getElementById('angle').value);
+            const g = parseFloat(document.getElementById('gravity').value);
+            const angleRad = angleDeg * (Math.PI / 180);
+
+            initPhysics = {
+                v: v,
+                angle: angleDeg,
+                g: g,
+                vx: v * Math.cos(angleRad),
+                vy0: v * Math.sin(angleRad)
+            };
+
+            ball = {
+                worldX: CANNON_X,
+                worldY: 30,
+                vx: initPhysics.vx * 1.5,
+                vy: initPhysics.vy0 * 1.5,
+                radius: 8,
+                g: g * 0.1
+            };
+
+            updateMathInitials();
+
+            trail = [];
+            time = 0;
+            isSimulating = true;
+            if (!autoFollow) { autoFollow = true; updateFollowBtn(); }
+            loop();
+        }
+
+        function resetSim() {
+            isSimulating = false;
+            ball = null;
+            trail = [];
+            time = 0;
+            resetCamera();
+            draw();
+            updateMathLive(0, 0, 0, 0);
+            updateMathInitials(true);
+        }
+
+        function loop() {
+            if (!isSimulating) return;
+
+            ball.vy -= ball.g;
+            ball.worldX += ball.vx;
+            ball.worldY += ball.vy;
+            time += 1 / 60;
+
+            if (ball.worldY <= 0) {
+                ball.worldY = 0;
+                isSimulating = false;
+            }
+
+            if (time % 0.1 < 0.02) trail.push({ x: ball.worldX, y: ball.worldY });
+
+            if (autoFollow) {
+                const targetCamX = -(ball.worldX - width / 3);
+                let targetCamY = height - 100;
+                if (ball.worldY * SCALE > height - 200) targetCamY = height - 100 + (ball.worldY * SCALE - (height / 2));
+                camera.x += (targetCamX - camera.x) * 0.1;
+                // Optional: vertical follow logic can be improved here
+            }
+
+            draw();
+            updateMathLive(time);
+
+            if (isSimulating) requestAnimationFrame(loop);
+        }
+
+        function draw() {
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.save();
+            drawInfiniteGrid();
+
+            // Ground
+            ctx.beginPath();
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 4;
+            ctx.moveTo(0, camera.y);
+            ctx.lineTo(width, camera.y);
+            ctx.stroke();
+
+            // Cannon
+            const cannonScreenX = CANNON_X + camera.x;
+            ctx.save();
+            ctx.translate(cannonScreenX, camera.y);
+            ctx.rotate(-(document.getElementById('angle').value * Math.PI / 180));
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(0, -10, 50, 20);
+            ctx.restore();
+            ctx.beginPath(); ctx.arc(cannonScreenX, camera.y, 15, 0, Math.PI * 2); ctx.fillStyle = '#cbd5e1'; ctx.fill();
+
+            if (trail.length > 1) {
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(250, 204, 21, 0.5)';
+                ctx.lineWidth = 3;
+                trail.forEach((p, i) => {
+                    const sx = p.x + camera.x;
+                    const sy = camera.y - p.y;
+                    if (i === 0) ctx.moveTo(sx, sy);
+                    else ctx.lineTo(sx, sy);
+                });
+                ctx.stroke();
+            }
+
+            if (ball) {
+                const bx = ball.worldX + camera.x;
+                const by = camera.y - ball.worldY;
+                ctx.beginPath(); ctx.ellipse(bx, camera.y, 10, 3, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fill();
+                ctx.beginPath(); ctx.arc(bx, by, ball.radius, 0, Math.PI * 2); ctx.fillStyle = '#facc15'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function drawInfiniteGrid() {
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#334155';
+            const startX = (camera.x % GRID_SIZE) - GRID_SIZE;
+            const startY = (camera.y % GRID_SIZE) - GRID_SIZE;
+            ctx.beginPath();
+            for (let x = startX; x < width; x += GRID_SIZE) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
+            for (let y = startY; y < height; y += GRID_SIZE) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
+            ctx.stroke();
+        }
+
+        function updateMathInitials(reset = false) {
+            if (reset) {
+                document.getElementById('math-vx-init').innerText = "0.00";
+                document.getElementById('math-vy-init').innerText = "0.00";
+                return;
+            }
+            document.getElementById('math-vx-init').innerText = initPhysics.vx.toFixed(2);
+            document.getElementById('math-vy-init').innerText = initPhysics.vy0.toFixed(2);
+        }
+
+        function updateMathLive(t) {
+            document.getElementById('math-t').innerText = t.toFixed(2);
+            const x = initPhysics.vx * t;
+            const y = (initPhysics.vy0 * t) - (0.5 * initPhysics.g * t * t);
+            const vy = initPhysics.vy0 - (initPhysics.g * t);
+
+            document.getElementById('calc-vx').innerText = initPhysics.vx.toFixed(1);
+            document.getElementById('calc-tx').innerText = t.toFixed(2);
+            document.getElementById('math-x').innerText = x.toFixed(2) + " m";
+
+            document.getElementById('calc-vy0').innerText = initPhysics.vy0.toFixed(1);
+            document.getElementById('calc-ty').innerText = t.toFixed(2);
+            document.getElementById('calc-g').innerText = initPhysics.g.toFixed(1);
+            document.getElementById('calc-ty2').innerText = t.toFixed(2);
+            document.getElementById('math-y').innerText = Math.max(0, y).toFixed(2) + " m";
+
+            document.getElementById('math-vy-final').innerText = vy.toFixed(2) + " m/s";
+        }
+
+        function resetCamera() { camera.x = 50; camera.y = height - 100; autoFollow = true; updateFollowBtn(); draw(); }
+        function toggleFollow() { autoFollow = !autoFollow; updateFollowBtn(); }
+        function updateFollowBtn() {
+            const btn = document.getElementById('btn-follow');
+            btn.innerText = autoFollow ? "Target: ON" : "Target: OFF";
+            btn.style.background = autoFollow ? "#38bdf8" : "transparent";
+            btn.style.color = autoFollow ? "black" : "white";
+        }
+
+        ['speed', 'angle', 'gravity'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                const suffix = id === 'angle' ? '°' : (id === 'gravity' ? ' m/s²' : ' m/s');
+                document.getElementById('val-' + (id === 'speed' ? 'speed' : (id === 'angle' ? 'angle' : 'grav'))).innerText = e.target.value + suffix;
+                draw();
+            });
+        });
+
+        resize();
+    </script>
+</body>
+
+</html>
