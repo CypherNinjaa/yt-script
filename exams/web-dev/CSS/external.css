@@ -1,0 +1,15 @@
+h1{
+    color: tomato;
+    text-align: center;
+    font-size: 40px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+p{
+    color: chocolate;
+    text-align: justify;
+
+}
+
+body{
+    background-color: aliceblue;
+}

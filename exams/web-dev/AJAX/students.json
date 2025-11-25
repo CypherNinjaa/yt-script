@@ -1,0 +1,12 @@
+[
+	{
+		"roll": 101,
+		"name": "Vikash",
+		"email": "vikash@example.com"
+	},
+	{
+		"roll": 102,
+		"name": "Priya",
+		"email": "priya@example.com"
+	}
+]

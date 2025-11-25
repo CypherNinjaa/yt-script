@@ -1,0 +1,28 @@
+/* 1. Element Selector */
+p {
+    color: blue;
+}
+
+/* 2. Class Selector */
+.highlight {
+    color: red;
+    font-weight: bold;
+}
+
+/* 3. ID Selector */
+#special {
+    color: green;
+    font-size: 22px;
+}
+
+/* 4. Descendant Selector */
+.box p {
+    color: purple;
+    background-color: lightgray;
+}
+
+/* 5. Pseudo-class Selector */
+a:hover {
+    color: orange;
+    font-size: 20px;
+}

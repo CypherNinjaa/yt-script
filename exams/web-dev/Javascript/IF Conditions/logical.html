@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>logical</title>
+</head>
+
+<body>
+    <script>
+        console.log("this is logical and")
+        let x = 6;
+        let y = 7;
+        let z = (x < 10 && y > 1);
+        console.log(z);
+        console.log("this is logical or")
+        let zz = (x > 0 || y > 0)
+        console.log(zz);
+        // logical not
+        let a = (5 == 8);
+        let b = !(5 == 8)
+        console.log("A = ", a, "b= ", b);
+        // the nullish coalescing operator
+        let name = null;
+        let text = "vikash";
+        let result = name ?? text;
+        console.log(result);
+
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array</title>
+</head>
+
+<body>
+    <p id="arr"></p>
+    <p id="array"></p>
+    <script>
+        const car = ["lambo", "swift", "desire"];
+        for (let i = 0; i < car.length; i++) {
+            document.getElementById("arr").innerHTML += car[i] + "<br>";
+        }
+         car.push("legender")
+        document.getElementById("array").innerHTML= car.toString();
+       
+        document.getElementById("arr").style.color="red"
+
+        let regex = /hello/;
+            console.log(regex.test("hello world"));  // true
+            console.log(regex.test("hi world"));     // false
+
+            let text = "I love javascript";
+            let result = text.match(/javascript/);
+            console.log(result)
+            let repl = text.replace(/javascript/,"java");
+            console.log(repl)
+            
+    </script>
+</body>
+
+</html>

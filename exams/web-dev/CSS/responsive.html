@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Media Query Practice</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<style>
+    /* Default Desktop Design */
+body {
+    background-color: lightblue;
+    text-align: center;
+    font-family: Arial;
+}
+
+.box {
+    width: 300px;
+    height: 150px;
+    background-color: white;
+    margin: auto;
+    padding: 20px;
+    border: 3px solid black;
+}
+
+/* 🧪 Mobile View (max width 768px) */
+@media screen and (max-width: 768px) {
+    body {
+        background-color: lightgreen;
+    }
+
+    .box {
+        width: 90%;
+        background-color: yellow;
+        font-size: 20px;
+    }
+}
+
+/* 🧪 Very Small Screens (max width 480px) */
+@media screen and (max-width: 480px) {
+    body {
+        background-color: pink;
+    }
+
+    .box {
+        background-color: orange;
+    }
+}
+
+</style>
+<body>
+
+    <h1>Responsive Webpage</h1>
+    <p>This page changes color on different screen sizes.</p>
+
+    <div class="box">
+        Resize your browser to see magic ✨
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,13 @@
+.box{
+    width: 300px;
+    height: 150px;
+    background-color: lightblue;
+    /* space inside the box */
+    padding: 20px;  
+    border: 4px dotted black;
+    /* space outside the box */
+    margin: 40px;
+
+    font-size: 18px;
+    text-align: center;
+}

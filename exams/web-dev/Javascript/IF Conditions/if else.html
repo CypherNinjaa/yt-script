@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS_IF</title>
+</head>
+
+<body>
+
+    <p id="true"></p>
+    <p id="ind"></p>
+    <script>
+        let age = 18;
+        if (age >= 18) {
+            document.getElementById("true").innerText = "You can Drive!";
+        }
+
+        let country = "india"
+        if (age >= 18) {
+            if (country == "india") {
+                document.getElementById("ind").innerText = "You can Drive!";
+            }
+        } else {
+            document.getElementById("ind").innerText = "You can't Drive!";
+        }
+    </script>
+    <!-- else if -->
+    <p id="greeting"></p>
+    <script>
+        let rand = Math.random();
+        if (rand >= 0.5) {
+            document.getElementById("greeting").innerText = "Good morning";
+            console.log(rand);
+        } else if (rand <= 1) {
+            document.getElementById("greeting").innerText = "Good Night";
+            console.log(rand);
+        }
+    </script>
+</body>
+
+</html>
