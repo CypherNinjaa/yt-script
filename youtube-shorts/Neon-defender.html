@@ -14,7 +14,6 @@
             background-color: #050505;
             font-family: 'Orbitron', sans-serif;
             touch-action: none;
-            /* Prevent scrolling on mobile */
         }
 
         #gameContainer {
@@ -27,7 +26,6 @@
             display: block;
         }
 
-        /* UI Overlay */
         #uiLayer {
             position: absolute;
             top: 0;
@@ -35,7 +33,6 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            /* Let clicks pass through to canvas if needed, mostly for HUD */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -51,7 +48,18 @@
             font-weight: bold;
         }
 
-        /* Menus */
+        .hud-message {
+            position: absolute;
+            top: 20%;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 2rem;
+            text-shadow: 0 0 20px #fff;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
         .menu-screen {
             position: absolute;
             top: 0;
@@ -155,12 +163,13 @@
                 <div id="scoreDisplay">SCORE: 0</div>
                 <div id="healthDisplay">HP: 100%</div>
             </div>
+            <div id="hudMessage" class="hud-message"></div>
         </div>
 
         <!-- Start Screen -->
         <div id="startScreen" class="menu-screen">
             <h1>NEON<br>DEFENDER</h1>
-            <p class="subtitle">Defend the grid from the void swarm.</p>
+            <p class="subtitle">Defend the grid. Collect Power-Ups.</p>
             <button class="btn" onclick="startGame()">Start Mission</button>
             <div class="controls-hint">
                 <span class="desktop-hint">WASD to Move • Arrow Keys to Shoot</span>
@@ -186,6 +195,7 @@
         const scoreDisplay = document.getElementById('scoreDisplay');
         const healthDisplay = document.getElementById('healthDisplay');
         const finalScoreDisplay = document.getElementById('finalScore');
+        const hudMessage = document.getElementById('hudMessage');
 
         // Game State
         let animationId;
@@ -214,7 +224,6 @@
         // Event Listeners
         window.addEventListener('keydown', (e) => {
             if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
-            if (e.key === " " && gameActive) player.shoot();
         });
         window.addEventListener('keyup', (e) => {
             if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
@@ -230,12 +239,12 @@
         }, { passive: false });
 
         window.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // prevent scrolling
+            e.preventDefault();
             if (touch.active) {
                 touch.x = e.touches[0].clientX;
                 touch.y = e.touches[0].clientY;
                 player.targetX = touch.x;
-                player.targetY = touch.y - 50; // Offset slightly above finger
+                player.targetY = touch.y - 50;
             }
         }, { passive: false });
 
@@ -283,12 +292,12 @@
                 this.x = Math.random() * canvas.width;
                 this.y = Math.random() * canvas.height;
                 this.size = Math.random() * 2;
-                this.speedY = Math.random() * 3 + 1; // Parallax effect
+                this.speedY = Math.random() * 3 + 1;
                 this.color = `rgba(255, 255, 255, ${Math.random()})`;
             }
 
             update() {
-                this.y += this.speedY * (gameActive ? 1.5 : 0.5); // Faster when playing
+                this.y += this.speedY * (gameActive ? 1.5 : 0.5);
                 if (this.y > canvas.height) {
                     this.y = 0;
                     this.x = Math.random() * canvas.width;
@@ -326,6 +335,70 @@
             }
         }
 
+        class PowerUp {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.velocity = { x: (Math.random() - 0.5), y: 1.5 }; // Drifts down
+                this.radius = 18;
+                this.type = type; // 'health', 'shield', 'multi', 'nuke'
+                this.angle = 0;
+
+                // Config based on type
+                switch (type) {
+                    case 'health':
+                        this.color = '#00ff00';
+                        this.symbol = '+';
+                        break;
+                    case 'shield':
+                        this.color = '#00ffff';
+                        this.symbol = 'S';
+                        break;
+                    case 'multi':
+                        this.color = '#ffff00';
+                        this.symbol = 'M';
+                        break;
+                    case 'nuke':
+                        this.color = '#ff3300';
+                        this.symbol = 'N';
+                        break;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                // Bobbing effect
+                ctx.translate(0, Math.sin(frames * 0.1) * 3);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = this.color;
+                ctx.stroke();
+
+                // Glow
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+
+                // Symbol
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px Orbitron';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.symbol, 0, 2);
+
+                ctx.restore();
+            }
+
+            update() {
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+            }
+        }
+
         class Enemy {
             constructor(x, y, radius, color, velocity) {
                 this.x = x;
@@ -333,7 +406,7 @@
                 this.radius = radius;
                 this.color = color;
                 this.velocity = velocity;
-                this.hp = Math.ceil(radius / 10); // Bigger = more hp
+                this.hp = Math.ceil(radius / 10);
                 this.angle = 0;
                 this.spinSpeed = (Math.random() - 0.5) * 0.1;
             }
@@ -349,7 +422,6 @@
                 ctx.strokeStyle = this.color;
                 ctx.lineWidth = 3;
 
-                // Draw a hexagon
                 const sides = 6;
                 for (let i = 0; i < sides; i++) {
                     const angle = (i * 2 * Math.PI) / sides;
@@ -361,7 +433,6 @@
                 ctx.closePath();
                 ctx.stroke();
 
-                // Inner core
                 ctx.fillStyle = `rgba(255,255,255, ${this.hp / (this.radius / 10)})`;
                 ctx.fill();
 
@@ -373,7 +444,6 @@
                 this.y += this.velocity.y;
                 this.angle += this.spinSpeed;
 
-                // Simple bounce off walls
                 if (this.x - this.radius < 0 || this.x + this.radius > canvas.width) {
                     this.velocity.x = -this.velocity.x;
                 }
@@ -388,15 +458,49 @@
                 this.color = '#fff';
                 this.velocity = { x: 0, y: 0 };
                 this.speed = 7;
-                this.targetX = null; // For touch controls
+                this.targetX = null;
                 this.targetY = null;
                 this.lastShot = 0;
                 this.hp = 100;
+
+                // Power-up states
+                this.invulnerable = false;
+                this.multiShot = false;
+                this.timers = { invulnerable: null, multiShot: null };
+            }
+
+            activateShield() {
+                this.invulnerable = true;
+                showMessage("SHIELD ACTIVE", "#00ffff");
+                if (this.timers.invulnerable) clearTimeout(this.timers.invulnerable);
+                this.timers.invulnerable = setTimeout(() => {
+                    this.invulnerable = false;
+                }, 6000);
+            }
+
+            activateMultiShot() {
+                this.multiShot = true;
+                showMessage("MULTI-SHOT", "#ffff00");
+                if (this.timers.multiShot) clearTimeout(this.timers.multiShot);
+                this.timers.multiShot = setTimeout(() => {
+                    this.multiShot = false;
+                }, 8000);
             }
 
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
+
+                // Shield Visual
+                if (this.invulnerable) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 15, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${Math.abs(Math.sin(frames * 0.1))})`;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00ffff';
+                }
 
                 // Engine trail
                 ctx.beginPath();
@@ -410,14 +514,14 @@
                 ctx.beginPath();
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = '#00ffff';
-                ctx.fillStyle = '#000';
+                ctx.fillStyle = this.invulnerable ? '#aaa' : '#000'; // Flash grey if invulnerable
                 ctx.strokeStyle = '#00ffff';
                 ctx.lineWidth = 2;
 
-                ctx.moveTo(0, -30); // Nose
-                ctx.lineTo(20, 20); // Right wing
-                ctx.lineTo(0, 10);  // Center back
-                ctx.lineTo(-20, 20); // Left wing
+                ctx.moveTo(0, -30);
+                ctx.lineTo(20, 20);
+                ctx.lineTo(0, 10);
+                ctx.lineTo(-20, 20);
                 ctx.closePath();
                 ctx.fill();
                 ctx.stroke();
@@ -426,7 +530,7 @@
             }
 
             update() {
-                // Keyboard Movement (WASD Only)
+                // WASD Movement
                 if (keys.a) this.velocity.x = -this.speed;
                 else if (keys.d) this.velocity.x = this.speed;
                 else this.velocity.x = 0;
@@ -435,7 +539,7 @@
                 else if (keys.s) this.velocity.y = this.speed;
                 else this.velocity.y = 0;
 
-                // Touch "Follow" Logic
+                // Touch Logic
                 if (this.targetX !== null) {
                     const dx = this.targetX - this.x;
                     const dy = this.targetY - this.y;
@@ -444,8 +548,7 @@
                     if (dist > 5) {
                         this.velocity.x = (dx / dist) * this.speed * 1.5;
                         this.velocity.y = (dy / dist) * this.speed * 1.5;
-
-                        // Auto shoot on mobile (upwards default)
+                        // Auto shoot on mobile
                         if (frames % 10 === 0) this.shoot({ x: 0, y: -12 });
                     } else {
                         this.velocity.x = 0;
@@ -453,17 +556,15 @@
                     }
                 }
 
-                // Apply Velocity
                 this.x += this.velocity.x;
                 this.y += this.velocity.y;
 
-                // Boundaries
                 if (this.x < this.radius) this.x = this.radius;
                 if (this.x > canvas.width - this.radius) this.x = canvas.width - this.radius;
                 if (this.y < this.radius) this.y = this.radius;
                 if (this.y > canvas.height - this.radius) this.y = canvas.height - this.radius;
 
-                // Directional Shooting (Arrow Keys)
+                // Directional Shooting
                 let shootX = 0;
                 let shootY = 0;
                 if (keys.ArrowLeft) shootX = -1;
@@ -472,7 +573,6 @@
                 if (keys.ArrowDown) shootY = 1;
 
                 if (shootX !== 0 || shootY !== 0) {
-                    // Normalize vector
                     const len = Math.hypot(shootX, shootY);
                     const speed = 12;
                     this.shoot({
@@ -480,20 +580,42 @@
                         y: (shootY / len) * speed
                     });
                 } else if (keys[" "]) {
-                    // Spacebar default
                     this.shoot({ x: 0, y: -12 });
                 }
             }
 
             shoot(velocity) {
                 const now = Date.now();
-                if (now - this.lastShot > 150) { // Fire rate
-                    // Spawn projectile from center to allow omni-directional firing without clipping oddities
-                    projectiles.push(new Projectile(this.x, this.y, velocity));
+                let fireRate = this.multiShot ? 120 : 150; // Faster fire rate with multi
 
-                    // Muzzle flash particle
-                    createExplosion(this.x, this.y, '#00ffff', 5);
+                if (now - this.lastShot > fireRate) {
 
+                    const color = this.multiShot ? '#ffff00' : '#00ffff';
+
+                    if (this.multiShot) {
+                        // Spread shot logic
+                        const angle = Math.atan2(velocity.y, velocity.x);
+                        const speed = Math.hypot(velocity.x, velocity.y);
+                        const spread = 0.2; // Radians
+
+                        // Center
+                        projectiles.push(new Projectile(this.x, this.y, velocity, color));
+                        // Left
+                        projectiles.push(new Projectile(this.x, this.y, {
+                            x: Math.cos(angle - spread) * speed,
+                            y: Math.sin(angle - spread) * speed
+                        }, color));
+                        // Right
+                        projectiles.push(new Projectile(this.x, this.y, {
+                            x: Math.cos(angle + spread) * speed,
+                            y: Math.sin(angle + spread) * speed
+                        }, color));
+                    } else {
+                        // Normal shot
+                        projectiles.push(new Projectile(this.x, this.y, velocity, color));
+                    }
+
+                    createExplosion(this.x, this.y, color, 5);
                     this.lastShot = now;
                 }
             }
@@ -508,12 +630,14 @@
         let projectiles = [];
         let enemies = [];
         let particles = [];
+        let powerUps = [];
 
         function init() {
             player = new Player();
             projectiles = [];
             enemies = [];
             particles = [];
+            powerUps = [];
             score = 0;
             frames = 0;
             difficultyMultiplier = 1;
@@ -531,28 +655,43 @@
             }
         }
 
+        function spawnPowerUp(x, y) {
+            const rand = Math.random();
+            let type;
+            if (rand < 0.35) type = 'health';
+            else if (rand < 0.6) type = 'multi';
+            else if (rand < 0.85) type = 'shield';
+            else type = 'nuke';
+
+            powerUps.push(new PowerUp(x, y, type));
+        }
+
+        function showMessage(text, color) {
+            hudMessage.innerText = text;
+            hudMessage.style.color = color;
+            hudMessage.style.opacity = 1;
+            hudMessage.style.textShadow = `0 0 20px ${color}`;
+            setTimeout(() => {
+                hudMessage.style.opacity = 0;
+            }, 2000);
+        }
+
         function spawnEnemies() {
             if (frames % 60 === 0) {
                 const radius = Math.random() * (30 * difficultyMultiplier) + 15;
                 let x;
                 if (Math.random() < 0.5) {
-                    x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius; // Side spawn
+                    x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
                 } else {
-                    x = Math.random() * canvas.width; // Top spawn
+                    x = Math.random() * canvas.width;
                 }
-
                 const y = -radius;
-
-                const color = `hsl(${Math.random() * 60 + 300}, 50%, 50%)`; // Pinks and purples
-
-                // Velocity calculation: Aim roughly at player or down
+                const color = `hsl(${Math.random() * 60 + 300}, 50%, 50%)`;
                 const angle = Math.atan2(player.y - y, player.x - x);
                 const speed = Math.random() * 2 + 1 + (difficultyMultiplier * 0.5);
-
-                // Add some randomness to aim so they don't laser beam you instantly
                 const velocity = {
                     x: Math.cos(angle + (Math.random() - 0.5)) * speed,
-                    y: Math.abs(Math.sin(angle) * speed) // Always move somewhat down
+                    y: Math.abs(Math.sin(angle) * speed)
                 };
 
                 enemies.push(new Enemy(x, y, radius, color, velocity));
@@ -561,19 +700,18 @@
 
         function animate() {
             animationId = requestAnimationFrame(animate);
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; // Trail effect
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Background
             backgroundStars.forEach(star => {
                 star.update();
                 star.draw();
             });
 
-            if (!gameActive) return; // If paused or menu, just animate stars
+            if (!gameActive) return;
 
             frames++;
-            if (frames % 600 === 0) difficultyMultiplier += 0.2; // Increase difficulty every 10 sec
+            if (frames % 600 === 0) difficultyMultiplier += 0.2;
 
             player.update();
             player.draw();
@@ -588,13 +726,57 @@
                 }
             });
 
+            // PowerUps
+            powerUps.forEach((pup, index) => {
+                pup.update();
+                pup.draw();
+
+                // Collision Player <-> PowerUp
+                const dist = Math.hypot(player.x - pup.x, player.y - pup.y);
+                if (dist - player.radius - pup.radius < 1) {
+                    // Apply Effect
+                    if (pup.type === 'health') {
+                        player.hp = Math.min(100, player.hp + 30);
+                        healthDisplay.innerText = `HP: ${player.hp}%`;
+                        showMessage("REPAIR", "#00ff00");
+                        if (player.hp > 40) healthDisplay.style.color = "#fff";
+                    }
+                    else if (pup.type === 'shield') {
+                        player.activateShield();
+                    }
+                    else if (pup.type === 'multi') {
+                        player.activateMultiShot();
+                    }
+                    else if (pup.type === 'nuke') {
+                        showMessage("NUKE DETECTED", "#ff3300");
+                        // Flash screen
+                        canvas.style.backgroundColor = '#fff';
+                        setTimeout(() => canvas.style.backgroundColor = '#050505', 50);
+
+                        // Kill all enemies
+                        enemies.forEach(e => {
+                            createExplosion(e.x, e.y, e.color, 20);
+                            score += 50;
+                        });
+                        enemies = [];
+                        scoreDisplay.innerText = `SCORE: ${score}`;
+                    }
+
+                    powerUps.splice(index, 1);
+                }
+
+                // Remove off screen
+                if (pup.y > canvas.height + 50) powerUps.splice(index, 1);
+            });
+
             // Projectiles
             projectiles.forEach((projectile, index) => {
                 projectile.update();
                 projectile.draw();
 
-                // Remove off-screen
-                if (projectile.y + projectile.radius < 0) {
+                if (projectile.y + projectile.radius < 0 ||
+                    projectile.x < 0 || projectile.x > canvas.width ||
+                    projectile.y > canvas.height) {
                     setTimeout(() => {
                         projectiles.splice(index, 1);
                     }, 0);
@@ -610,21 +792,19 @@
                 projectiles.forEach((projectile, pIndex) => {
                     const dist = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y);
                     if (dist - enemy.radius - projectile.radius < 1) {
-
-                        // Create particles
                         createExplosion(projectile.x, projectile.y, enemy.color, 8);
-
-                        // Remove projectile
                         projectiles.splice(pIndex, 1);
 
-                        // Damage enemy
                         enemy.hp--;
                         if (enemy.hp <= 0) {
-                            // Big explosion
                             createExplosion(enemy.x, enemy.y, enemy.color, 20);
-
                             score += 100 + Math.floor(enemy.radius);
                             scoreDisplay.innerText = `SCORE: ${score}`;
+
+                            // PowerUp Drop Chance (15%)
+                            if (Math.random() < 0.15) {
+                                spawnPowerUp(enemy.x, enemy.y);
+                            }
 
                             setTimeout(() => {
                                 enemies.splice(index, 1);
@@ -636,27 +816,32 @@
                 // Collision: Enemy vs Player
                 const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
                 if (dist - enemy.radius - player.radius < 1) {
-                    createExplosion(player.x, player.y, '#ff0000', 30);
-                    enemies.splice(index, 1);
-                    player.hp -= 35;
+                    if (!player.invulnerable) {
+                        createExplosion(player.x, player.y, '#ff0000', 30);
+                        player.hp -= 35;
 
-                    // Screen shake effect
-                    canvas.style.transform = `translate(${Math.random() * 10 - 5}px, ${Math.random() * 10 - 5}px)`;
-                    setTimeout(() => canvas.style.transform = 'none', 50);
+                        canvas.style.transform = `translate(${Math.random() * 10 - 5}px, ${Math.random() * 10 - 5}px)`;
+                        setTimeout(() => canvas.style.transform = 'none', 50);
 
-                    if (player.hp <= 0) {
-                        player.hp = 0;
-                        endGame();
+                        if (player.hp <= 0) {
+                            player.hp = 0;
+                            endGame();
+                        }
+                        healthDisplay.innerText = `HP: ${player.hp}%`;
+                        if (player.hp < 40) healthDisplay.style.color = "#ff3333";
+                    } else {
+                        // Ramming enemies while shielded destroys them!
+                        createExplosion(enemy.x, enemy.y, enemy.color, 20);
+                        score += 50; // Bonus for ramming
+                        scoreDisplay.innerText = `SCORE: ${score}`;
                     }
 
-                    healthDisplay.innerText = `HP: ${player.hp}%`;
-                    if (player.hp < 40) healthDisplay.style.color = "#ff3333";
+                    // Enemy is destroyed on contact regardless
+                    enemies.splice(index, 1);
                 }
 
-                // Cleanup off-screen enemies
                 if (enemy.y - enemy.radius > canvas.height) {
                     enemies.splice(index, 1);
-                    // Penalty for missing enemies? Maybe not for now
                 }
             });
 
@@ -680,7 +865,6 @@
             startGame();
         }
 
-        // Start loop immediately for background
         animate();
 
     </script>
