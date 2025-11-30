@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Jellyfish v2 | 60SecondDev</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #010208;
+            /* Abyssal Black */
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        canvas {
+            display: block;
+            cursor: none;
+        }
+
+        #ui {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            color: rgba(0, 243, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-size: 0.7rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(0, 243, 255, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui">Swim with Mouse</div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        // --- CONFIGURATION ---
+        const HEAD_RADIUS = 50;
+        const HEAD_SEGMENTS = 18;
+        const TENTACLE_COUNT = 12;
+        const ARM_COUNT = 3; // Oral arms (center)
+        const FRICTION = 0.92;
+        const PULSE_SPEED = 0.08;
+
+        // MOUSE TARGET
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- PHYSICS PRIMITIVES ---
+
+        class Node {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= FRICTION;
+                this.vy *= FRICTION;
+            }
+        }
+
+        class Spring {
+            constructor(p1, p2, length, k) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.baseLength = length;
+                this.length = length;
+                this.k = k;
+            }
+            update() {
+                const dx = this.p2.x - this.p1.x;
+                const dy = this.p2.y - this.p1.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist === 0) return;
+
+                const force = (dist - this.length) * this.k;
+                const fx = (dx / dist) * force;
+                const fy = (dy / dist) * force;
+
+                this.p1.vx += fx;
+                this.p1.vy += fy;
+                this.p2.vx -= fx;
+                this.p2.vy -= fy;
+            }
+        }
+
+        // --- TENTACLE CHAIN ---
+        class Tentacle {
+            constructor(parent, length, stiffness, thickness, colorType) {
+                this.parent = parent;
+                this.nodes = [];
+                this.thickness = thickness;
+                this.type = colorType; // 0 = outer, 1 = inner arm
+
+                for (let i = 0; i < length; i++) {
+                    this.nodes.push(new Node(parent.x, parent.y + i * 5));
+                }
+            }
+
+            update(angleOffset) {
+                let target = this.parent;
+
+                for (let i = 0; i < this.nodes.length; i++) {
+                    let node = this.nodes[i];
+
+                    // 1. Drag Physics (Inverse Kinematics-ish)
+                    const dx = target.x - node.x;
+                    const dy = target.y - node.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const spacing = 4;
+
+                    if (dist > spacing) {
+                        const angle = Math.atan2(dy, dx);
+                        node.x = target.x - Math.cos(angle) * spacing;
+                        node.y = target.y - Math.sin(angle) * spacing;
+
+                        // Add velocity transfer for fluidity
+                        node.vx += (target.x - node.x) * 0.05;
+                        node.vy += (target.y - node.y) * 0.05;
+                    }
+
+                    // 2. Procedural Water Current (Sine Wave)
+                    // Adds life even when stationary
+                    const time = Date.now() * 0.002;
+                    const wave = Math.sin(time + (i * 0.1) + angleOffset) * (i * 0.05);
+                    node.x += wave;
+
+                    target = node;
+                }
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.moveTo(this.parent.x, this.parent.y);
+
+                // Draw smooth curve through nodes
+                for (let i = 0; i < this.nodes.length - 1; i++) {
+                    const p0 = this.nodes[i];
+                    const p1 = this.nodes[i + 1];
+                    const midX = (p0.x + p1.x) / 2;
+                    const midY = (p0.y + p1.y) / 2;
+                    ctx.quadraticCurveTo(p0.x, p0.y, midX, midY);
+                }
+
+                // Style based on type
+                if (this.type === 0) {
+                    // Outer Tentacle (Thin, bright)
+                    ctx.strokeStyle = 'rgba(0, 243, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                } else {
+                    // Inner Oral Arm (Thick, frilly, glowing)
+                    const grad = ctx.createLinearGradient(this.parent.x, this.parent.y, this.nodes[this.nodes.length - 1].x, this.nodes[this.nodes.length - 1].y);
+                    grad.addColorStop(0, 'rgba(180, 100, 255, 0.4)'); // Purple core
+                    grad.addColorStop(1, 'rgba(0, 243, 255, 0.0)');
+                    ctx.strokeStyle = grad;
+                    ctx.lineWidth = this.thickness;
+                }
+
+                ctx.stroke();
+            }
+        }
+
+        // --- MAIN ORGANISM ---
+
+        class Jellyfish {
+            constructor(x, y) {
+                this.center = new Node(x, y);
+                this.nodes = [];
+                this.springs = [];
+                this.tentacles = [];
+                this.pulseTimer = 0;
+
+                // 1. Create Bell (Ring of nodes)
+                for (let i = 0; i < HEAD_SEGMENTS; i++) {
+                    const angle = (Math.PI * 2 / HEAD_SEGMENTS) * i;
+                    const px = x + Math.cos(angle) * HEAD_RADIUS;
+                    const py = y + Math.sin(angle) * HEAD_RADIUS;
+                    this.nodes.push(new Node(px, py));
+                }
+
+                // 2. Connect Bell Nodes
+                for (let i = 0; i < HEAD_SEGMENTS; i++) {
+                    const next = (i + 1) % HEAD_SEGMENTS;
+                    const prev = (i - 1 + HEAD_SEGMENTS) % HEAD_SEGMENTS;
+
+                    // Skin tension (Connect neighbors)
+                    const skinDist = (Math.PI * 2 * HEAD_RADIUS) / HEAD_SEGMENTS;
+                    this.springs.push(new Spring(this.nodes[i], this.nodes[next], skinDist, 0.6));
+
+                    // Structure (Connect to center) - These will PULSE
+                    this.springs.push(new Spring(this.center, this.nodes[i], HEAD_RADIUS, 0.08));
+                }
+
+                // 3. Create Marginal Tentacles (Ring)
+                for (let i = 0; i < TENTACLE_COUNT; i++) {
+                    // Attach to random nodes on the bottom half
+                    // Map i to an angle on the bottom arc (PI/4 to 3PI/4 approx)
+                    const nodeIndex = Math.floor(i * (HEAD_SEGMENTS / TENTACLE_COUNT));
+                    this.tentacles.push(new Tentacle(this.nodes[nodeIndex], 30, 0.5, 1, 0));
+                }
+
+                // 4. Create Oral Arms (Center)
+                for (let i = 0; i < ARM_COUNT; i++) {
+                    this.tentacles.push(new Tentacle(this.center, 45, 0.5, 6, 1));
+                }
+            }
+
+            update() {
+                // Swim Logic (Follow Mouse)
+                const dx = mouse.x - this.center.x;
+                const dy = mouse.y - this.center.y;
+                // Smooth damping
+                this.center.vx += dx * 0.005;
+                this.center.vy += dy * 0.005;
+
+                // Pulsing Logic (Contraction)
+                this.pulseTimer += PULSE_SPEED;
+                // Create a heartbeat curve: Sharp contraction, slow release
+                const pulse = (Math.sin(this.pulseTimer) + 1) * 0.5;
+                const contraction = Math.pow(pulse, 4); // Spike the curve
+
+                // Update Springs (Dynamic Lengths)
+                this.springs.forEach(s => {
+                    // If it's a structural spring (connected to center), pulse it
+                    if (s.p1 === this.center) {
+                        s.length = s.baseLength * (0.8 + (0.2 * (1 - contraction)));
+                    }
+                    s.update();
+                });
+
+                this.center.update();
+                this.nodes.forEach(n => n.update());
+
+                // Update Tentacles
+                this.tentacles.forEach((t, i) => t.update(i));
+            }
+
+            draw() {
+                // 1. Draw Oral Arms (Behind body)
+                this.tentacles.filter(t => t.type === 1).forEach(t => t.draw(ctx));
+
+                // 2. Draw Internal Organs (The "Clover" or "Gonads")
+                ctx.fillStyle = 'rgba(200, 100, 255, 0.3)';
+                ctx.beginPath();
+                for (let i = 0; i < 4; i++) {
+                    const angle = this.pulseTimer + (Math.PI / 2 * i);
+                    const ox = this.center.x + Math.cos(angle) * 15;
+                    const oy = this.center.y + Math.sin(angle) * 15;
+                    ctx.moveTo(ox, oy);
+                    ctx.arc(ox, oy, 8, 0, Math.PI * 2);
+                }
+                ctx.fill();
+
+                // 3. Draw Bell Skin
+                ctx.beginPath();
+                // Smooth loop
+                const last = this.nodes[HEAD_SEGMENTS - 1];
+                const first = this.nodes[0];
+                const midX = (last.x + first.x) / 2;
+                const midY = (last.y + first.y) / 2;
+                ctx.moveTo(midX, midY);
+
+                for (let i = 0; i < HEAD_SEGMENTS; i++) {
+                    const p0 = this.nodes[i];
+                    const p1 = this.nodes[(i + 1) % HEAD_SEGMENTS];
+                    const mx = (p0.x + p1.x) / 2;
+                    const my = (p0.y + p1.y) / 2;
+                    ctx.quadraticCurveTo(p0.x, p0.y, mx, my);
+                }
+                ctx.closePath();
+
+                // Glassy Gradient Fill
+                const grad = ctx.createRadialGradient(this.center.x, this.center.y, 5, this.center.x, this.center.y, HEAD_RADIUS);
+                grad.addColorStop(0, 'rgba(0, 243, 255, 0.15)'); // Core
+                grad.addColorStop(0.7, 'rgba(0, 243, 255, 0.05)'); // Body
+                grad.addColorStop(1, 'rgba(0, 243, 255, 0.2)'); // Rim highlight
+
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // Rim Glow
+                ctx.strokeStyle = 'rgba(0, 243, 255, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 15;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 4. Draw Marginal Tentacles (On top of body rim)
+                this.tentacles.filter(t => t.type === 0).forEach(t => t.draw(ctx));
+            }
+        }
+
+        const jelly = new Jellyfish(width / 2, height / 2);
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            // Deep Ocean Fog
+            ctx.fillStyle = 'rgba(1, 2, 8, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Particles (Plankton)
+            if (Math.random() > 0.8) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.fillRect(Math.random() * width, Math.random() * height, 2, 2);
+            }
+
+            // Mouse Glow
+            ctx.beginPath();
+            ctx.arc(mouse.x, mouse.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.shadowColor = 'white';
+            ctx.shadowBlur = 20;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            jelly.update();
+            jelly.draw();
+
+            requestAnimationFrame(animate);
+        }
+
+        // EVENTS
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+        window.addEventListener('touchmove', e => {
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        animate();
+
+    </script>
+</body>
+
+</html>
