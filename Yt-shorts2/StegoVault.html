@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>StegoVault Pro | Encrypted Steganography</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- AES Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00ff88;
+            --accent: #00ccff;
+            --danger: #ff0055;
+            --bg: #050505;
+            --panel: #111;
+            --text: #e0e0e0;
+            --border: #333;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 1.8rem;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: var(--panel);
+            padding: 5px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 10px 25px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.3s;
+            font-weight: bold;
+            opacity: 0.6;
+            font-size: 0.9rem;
+        }
+
+        .tab:hover {
+            opacity: 1;
+            color: var(--primary);
+        }
+
+        .tab.active {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--primary);
+            opacity: 1;
+            border: 1px solid var(--primary);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+        }
+
+        /* MAIN CONTAINER */
+        .container {
+            width: 100%;
+            max-width: 550px;
+            background: var(--panel);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--border);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* UPLOAD ZONE */
+        .upload-zone {
+            border: 2px dashed #444;
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            position: relative;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        .upload-zone img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 4px;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .upload-zone.has-image .placeholder {
+            display: none;
+        }
+
+        .upload-zone.has-image img {
+            display: block;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* SETTINGS GRID */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        input[type="password"],
+        select {
+            background: #000;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+
+        input[type="password"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea {
+            width: 100%;
+            background: #000;
+            border: 1px solid var(--border);
+            color: var(--primary);
+            padding: 10px;
+            border-radius: 6px;
+            min-height: 100px;
+            margin-bottom: 10px;
+            font-family: monospace;
+            resize: vertical;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* CAPACITY BAR */
+        .capacity-wrapper {
+            margin-bottom: 20px;
+        }
+
+        .cap-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .progress-bg {
+            width: 100%;
+            height: 6px;
+            background: #222;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            transition: 0.3s;
+        }
+
+        .progress-fill.warning {
+            background: #ffcc00;
+        }
+
+        .progress-fill.danger {
+            background: #ff0055;
+        }
+
+        /* BUTTONS */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--primary);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn:disabled {
+            background: #333;
+            color: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-scan {
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            margin-top: 10px;
+        }
+
+        .btn-scan:hover {
+            background: rgba(0, 204, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.3);
+        }
+
+        /* RESULTS */
+        .result-area {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary);
+            display: none;
+            word-break: break-all;
+            font-size: 0.9rem;
+        }
+
+        .download-link {
+            display: block;
+            margin-top: 15px;
+            text-align: center;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            border: 1px dashed var(--primary);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .download-link:hover {
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* SCANNER OVERLAY */
+        #scan-canvas {
+            display: none;
+            max-width: 100%;
+            border-radius: 4px;
+            margin-top: 15px;
+            border: 1px solid var(--accent);
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.2);
+        }
+
+        .info-tag {
+            background: rgba(0, 204, 255, 0.1);
+            color: var(--accent);
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1><i class="fas fa-shield-alt"></i> StegoVault Pro</h1>
+    <div class="subtitle">Encrypted Image Steganography</div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('encode')">ENCRYPT</div>
+        <div class="tab" onclick="switchTab('decode')">DECRYPT</div>
+        <div class="tab" onclick="switchTab('analyze')">SCANNER</div>
+    </div>
+
+    <!-- ENCODE PANEL -->
+    <div class="container" id="panel-encode">
+        <div class="upload-zone" id="drop-enc" onclick="document.getElementById('file-enc').click()">
+            <div class="placeholder">
+                <i class="fas fa-file-image fa-2x" style="margin-bottom:10px; color:#555;"></i>
+                <p>Upload Cover Image (PNG/JPG)</p>
+            </div>
+            <img id="preview-enc">
+            <input type="file" id="file-enc" accept="image/*">
+        </div>
+
+        <div class="settings-grid">
+            <div class="input-group">
+                <label>Encryption Password</label>
+                <input type="password" id="pass-enc" placeholder="Optional (AES-256)">
+            </div>
+            <div class="input-group">
+                <label>Stealth Level</label>
+                <select id="bit-depth" onchange="updateCapacity()">
+                    <option value="1">1 Bit (Max Stealth)</option>
+                    <option value="2">2 Bits (Balanced)</option>
+                    <option value="4">4 Bits (Max Capacity)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="capacity-wrapper">
+            <div class="cap-labels">
+                <span>DATA CAPACITY</span>
+                <span id="cap-val">0%</span>
+            </div>
+            <div class="progress-bg">
+                <div class="progress-fill" id="cap-bar"></div>
+            </div>
+        </div>
+
+        <textarea id="secret-msg" placeholder="Enter message to hide..." oninput="updateCapacity()"></textarea>
+
+        <button class="btn" id="btn-encode" disabled>ENCRYPT & HIDE</button>
+        <a id="dl-link" class="download-link hidden" download="encrypted_stego.png">Download Stego Image</a>
+    </div>
+
+    <!-- DECODE PANEL -->
+    <div class="container hidden" id="panel-decode">
+        <div class="upload-zone" id="drop-dec" onclick="document.getElementById('file-dec').click()">
+            <div class="placeholder">
+                <i class="fas fa-key fa-2x" style="margin-bottom:10px; color:#555;"></i>
+                <p>Upload Stego Image</p>
+            </div>
+            <img id="preview-dec">
+            <input type="file" id="file-dec" accept="image/*">
+        </div>
+
+        <div class="input-group" style="margin-bottom: 20px;">
+            <label>Decryption Password</label>
+            <input type="password" id="pass-dec" placeholder="Enter password if encrypted">
+        </div>
+
+        <button class="btn" id="btn-decode" disabled>EXTRACT DATA</button>
+
+        <div class="result-area" id="decode-result">
+            <strong><i class="fas fa-terminal"></i> Decrypted Payload:</strong><br>
+            <span id="revealed-text" style="color: var(--primary)"></span>
+        </div>
+    </div>
+
+    <!-- ANALYZE PANEL -->
+    <div class="container hidden" id="panel-analyze">
+        <div class="upload-zone" id="drop-scan" onclick="document.getElementById('file-scan').click()">
+            <div class="placeholder">
+                <i class="fas fa-search fa-2x" style="margin-bottom:10px; color:#555;"></i>
+                <p>Upload Image to Scan</p>
+            </div>
+            <img id="preview-scan">
+            <input type="file" id="file-scan" accept="image/*">
+        </div>
+
+        <p style="font-size:0.8rem; color:#888; text-align:center;">
+            This tool enhances the Least Significant Bits (LSB) to reveal hidden noise patterns.
+        </p>
+
+        <button class="btn btn-scan" id="btn-scan" disabled>RUN STEGANALYSIS</button>
+        <canvas id="scan-canvas"></canvas>
+    </div>
+
+    <!-- Processing Canvas -->
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        let loadedImgEnc = null;
+        let loadedImgDec = null;
+        let loadedImgScan = null;
+
+        // --- TABS ---
+        function switchTab(mode) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+
+            const idx = mode === 'encode' ? 0 : (mode === 'decode' ? 1 : 2);
+            document.querySelectorAll('.tab')[idx].classList.add('active');
+            document.getElementById(`panel-${mode}`).classList.remove('hidden');
+        }
+
+        // --- FILE HANDLING ---
+        function setupUpload(inputId, previewId, btnId, type) {
+            document.getElementById(inputId).addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (type === 'enc') { loadedImgEnc = img; updateCapacity(); }
+                        if (type === 'dec') loadedImgDec = img;
+                        if (type === 'scan') loadedImgScan = img;
+
+                        document.getElementById(previewId).src = evt.target.result;
+                        document.getElementById(previewId).parentElement.classList.add('has-image');
+                        document.getElementById(btnId).disabled = false;
+                    };
+                    img.src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        setupUpload('file-enc', 'preview-enc', 'btn-encode', 'enc');
+        setupUpload('file-dec', 'preview-dec', 'btn-decode', 'dec');
+        setupUpload('file-scan', 'preview-scan', 'btn-scan', 'scan');
+
+        // --- CAPACITY LOGIC ---
+        function updateCapacity() {
+            if (!loadedImgEnc) return;
+
+            const bitsPerPixel = parseInt(document.getElementById('bit-depth').value) * 3; // R, G, B channels
+            const totalPixels = loadedImgEnc.width * loadedImgEnc.height;
+            const maxBits = totalPixels * bitsPerPixel;
+            const maxChars = Math.floor(maxBits / 8); // 8 bits per char
+
+            const msg = document.getElementById('secret-msg').value;
+            const currentChars = msg.length + 16; // +16 for length header logic overhead approx
+
+            const pct = Math.min(100, (currentChars / maxChars) * 100);
+
+            const bar = document.getElementById('cap-bar');
+            bar.style.width = `${pct}%`;
+            document.getElementById('cap-val').innerText = `${Math.ceil(pct)}%`;
+
+            bar.className = 'progress-fill';
+            if (pct > 70) bar.classList.add('warning');
+            if (pct > 95) bar.classList.add('danger');
+        }
+
+        // --- CORE UTILS ---
+        function strToBin(str) {
+            let bin = "";
+            for (let i = 0; i < str.length; i++) {
+                bin += str.charCodeAt(i).toString(2).padStart(16, '0'); // Use 16-bit for Unicode support
+            }
+            return bin;
+        }
+
+        function binToStr(bin) {
+            let str = "";
+            for (let i = 0; i < bin.length; i += 16) {
+                str += String.fromCharCode(parseInt(bin.substr(i, 16), 2));
+            }
+            return str;
+        }
+
+        // --- ENCRYPT & HIDE ---
+        document.getElementById('btn-encode').addEventListener('click', () => {
+            const msg = document.getElementById('secret-msg').value;
+            const pass = document.getElementById('pass-enc').value;
+            const depth = parseInt(document.getElementById('bit-depth').value);
+
+            if (!msg) return alert("Enter a message.");
+
+            // 1. Encrypt if password provided
+            let finalMsg = msg;
+            let isEncrypted = false;
+
+            if (pass) {
+                try {
+                    finalMsg = CryptoJS.AES.encrypt(msg, pass).toString();
+                    isEncrypted = true;
+                } catch (e) { return alert("Encryption failed"); }
+            }
+
+            // Prefix with special header to detect encryption later: "ENC:" or "TXT:"
+            // Then add length header (32 bits for larger capacity support)
+            const prefix = isEncrypted ? "ENC:" : "TXT:";
+            const payload = prefix + finalMsg;
+            const binary = strToBin(payload);
+
+            // Add Length Header (32-bit binary of the length of the binary string)
+            // We use a delimiter approach or fixed header. Let's use fixed 32-bit length header.
+            const lengthHeader = binary.length.toString(2).padStart(32, '0');
+            const fullBinary = lengthHeader + binary;
+
+            // 2. Embed
+            canvas.width = loadedImgEnc.width;
+            canvas.height = loadedImgEnc.height;
+            ctx.drawImage(loadedImgEnc, 0, 0);
+
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+
+            if (fullBinary.length > (data.length / 4) * 3 * depth) {
+                return alert("Message too large for this image/quality setting.");
+            }
+
+            let binIdx = 0;
+            // Loop pixels
+            for (let i = 0; i < data.length; i += 4) {
+                if (binIdx >= fullBinary.length) break;
+
+                // Process R, G, B
+                for (let j = 0; j < 3; j++) {
+                    if (binIdx >= fullBinary.length) break;
+
+                    const pixelVal = data[i + j];
+
+                    // Clear 'depth' LSBs
+                    // e.g. depth 2: mask is 11111100 (252)
+                    const mask = 255 << depth;
+                    const cleared = pixelVal & mask;
+
+                    // Get chunk of bits
+                    const chunk = fullBinary.substr(binIdx, depth).padEnd(depth, '0');
+                    const bitsVal = parseInt(chunk, 2);
+
+                    data[i + j] = cleared | bitsVal;
+                    binIdx += depth;
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+
+            const dl = document.getElementById('dl-link');
+            dl.href = canvas.toDataURL("image/png");
+            dl.classList.remove('hidden');
+            dl.innerText = "DOWNLOAD SECURE IMAGE";
+            alert("Processing Complete.");
+        });
+
+        // --- EXTRACT & DECRYPT ---
+        document.getElementById('btn-decode').addEventListener('click', () => {
+            const pass = document.getElementById('pass-dec').value;
+
+            canvas.width = loadedImgDec.width;
+            canvas.height = loadedImgDec.height;
+            ctx.drawImage(loadedImgDec, 0, 0);
+
+            const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+            // Attempt to detect bit depth (Brute-force 1, 2, 4 if we wanted to be fancy, but let's assume standard or ask user. 
+            // For this Pro version, we will scan LSB 1. If garbage, user might need to match settings.
+            // Actually, we can try to parse the 32-bit header with depth=1. If reasonable, proceed.
+            // For simplicity in this demo, we assume depth=1 for headers, or require user to match settings?
+            // BETTER: We'll scan with Depth 1. If user used 4, we fail. 
+            // To make it robust: We will iterate depths 1, 2, 4 to find valid header.
+
+            let foundPayload = null;
+
+            [1, 2, 4].forEach(depth => {
+                if (foundPayload) return;
+
+                // Read 32 bits for length
+                let bin = "";
+                let idx = 0;
+                let dataIdx = 0;
+
+                // Need 32 bits. 
+                // Bits per channel = depth.
+                // Pixels needed = ceil(32 / (3*depth))
+
+                while (bin.length < 32 && dataIdx < data.length) {
+                    for (let j = 0; j < 3; j++) {
+                        if (bin.length >= 32) break;
+                        const val = data[dataIdx + j];
+                        const bits = val & ((1 << depth) - 1); // Extract LSBs
+                        const bitsStr = bits.toString(2).padStart(depth, '0');
+                        bin += bitsStr;
+                    }
+                    dataIdx += 4;
+                }
+
+                // Parse Length
+                const len = parseInt(bin.substr(0, 32), 2);
+
+                // Heuristic: If len is massive or 0, prob wrong depth
+                if (len > 0 && len < data.length * 8) {
+                    // Extract body
+                    let bodyBin = "";
+                    // Continue from dataIdx, keeping residual bits logic...
+                    // Re-start properly for clean extraction
+
+                    let fullBin = "";
+                    let pIdx = 0;
+                    const totalBitsNeeded = 32 + len;
+
+                    while (fullBin.length < totalBitsNeeded && pIdx < data.length) {
+                        for (let j = 0; j < 3; j++) {
+                            if (fullBin.length >= totalBitsNeeded) break;
+                            const val = data[pIdx + j];
+                            const bits = val & ((1 << depth) - 1);
+                            fullBin += bits.toString(2).padStart(depth, '0');
+                        }
+                        pIdx += 4;
+                    }
+
+                    const msgBin = fullBin.substr(32, len);
+                    const rawText = binToStr(msgBin);
+
+                    if (rawText.startsWith("TXT:") || rawText.startsWith("ENC:")) {
+                        foundPayload = rawText;
+                    }
+                }
+            });
+
+            if (!foundPayload) return alert("No valid data found. Image might be compressed or empty.");
+
+            const type = foundPayload.substr(0, 4);
+            let content = foundPayload.substr(4);
+
+            if (type === "ENC:") {
+                if (!pass) return alert("This message is Encrypted. Enter password.");
+                try {
+                    const bytes = CryptoJS.AES.decrypt(content, pass);
+                    const originalText = bytes.toString(CryptoJS.enc.Utf8);
+                    if (!originalText) throw new Error();
+                    content = originalText;
+                } catch (e) {
+                    return alert("Wrong Password!");
+                }
+            }
+
+            document.getElementById('decode-result').style.display = 'block';
+            document.getElementById('revealed-text').innerText = content;
+        });
+
+        // --- SCANNER ---
+        document.getElementById('btn-scan').addEventListener('click', () => {
+            const scanCvs = document.getElementById('scan-canvas');
+            const sCtx = scanCvs.getContext('2d');
+
+            scanCvs.width = loadedImgScan.width;
+            scanCvs.height = loadedImgScan.height;
+            sCtx.drawImage(loadedImgScan, 0, 0);
+
+            const imgData = sCtx.getImageData(0, 0, scanCvs.width, scanCvs.height);
+            const data = imgData.data;
+
+            // Filter: Amplify LSB noise
+            for (let i = 0; i < data.length; i += 4) {
+                // R, G, B
+                data[i] = (data[i] & 1) * 255;     // If LSB is 1, make it FULL RED
+                data[i + 1] = (data[i + 1] & 3) * 85;  // Amplify 2 bits
+                data[i + 2] = (data[i + 2] & 1) * 255;
+                data[i + 3] = 255; // Alpha
+            }
+
+            sCtx.putImageData(imgData, 0, 0);
+            scanCvs.style.display = 'block';
+        });
+
+    </script>
+</body>
+
+</html>
