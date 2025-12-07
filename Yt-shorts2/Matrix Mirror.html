@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Matrix Mirror | 60SecondDev</title>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Courier New', monospace;
+        }
+
+        canvas {
+            display: block;
+            /* Flip horizontally to act like a mirror */
+            transform: scaleX(-1);
+        }
+
+        #ui {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 20px;
+            background: rgba(0, 20, 0, 0.8);
+            padding: 10px 30px;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+
+        .btn {
+            background: transparent;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: 0.3s;
+        }
+
+        .btn:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 15px #0f0;
+        }
+
+        .btn.active {
+            background: #0f0;
+            color: #000;
+        }
+
+        #error-msg {
+            position: absolute;
+            color: #f00;
+            top: 50%;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="error-msg">
+        <h1>CAMERA ACCESS DENIED</h1>
+        <p>Please allow camera access to enter the Matrix.</p>
+    </div>
+
+    <div id="ui">
+        <button class="btn active" onclick="setMode('matrix')">Matrix</button>
+        <button class="btn" onclick="setMode('cyber')">Cyberpunk</button>
+        <button class="btn" onclick="setMode('binary')">Binary</button>
+    </div>
+
+    <!-- Main Display Canvas -->
+    <canvas id="canvas"></canvas>
+
+    <!-- Hidden Elements for Processing -->
+    <video id="video" autoplay playsinline style="display:none"></video>
+    <canvas id="tempCanvas" style="display:none"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const tempCanvas = document.getElementById('tempCanvas');
+        const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+        const video = document.getElementById('video');
+
+        let width, height;
+        let animationId;
+        let mode = 'matrix';
+
+        // ASCII CHARACTERS (Sorted by visual density)
+        // Dense -> Light
+        const CHARS_MATRIX = "QWERTYUIOPASDFGHJKLZXCVBNM@#$%&+=*:-.  ";
+        const CHARS_BINARY = "101001 ";
+        const DENSITY = "$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ";
+
+        // CONFIG
+        const FONT_SIZE = 12;
+        let charsArr = CHARS_MATRIX;
+
+        // --- INIT ---
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480 } // Low res for performance style
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    resize();
+                    startMatrix();
+                };
+            } catch (err) {
+                document.getElementById('error-msg').style.display = 'block';
+                console.error("Camera denied:", err);
+            }
+        }
+
+        function resize() {
+            // Main canvas fills screen
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            // Temp canvas matches calculation grid
+            // We scale down to reduce loops (Optimization)
+            const cols = Math.floor(canvas.width / FONT_SIZE);
+            const rows = Math.floor(canvas.height / FONT_SIZE);
+
+            tempCanvas.width = cols;
+            tempCanvas.height = rows;
+        }
+        window.addEventListener('resize', resize);
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'binary') charsArr = CHARS_BINARY;
+            else charsArr = CHARS_MATRIX;
+        }
+
+        function startMatrix() {
+            ctx.font = `${FONT_SIZE}px monospace`;
+            ctx.textBaseline = 'top';
+
+            function render() {
+                // 1. Draw video frame to small temp canvas (Hardware Downscaling)
+                tempCtx.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                // 2. Get pixel data
+                const frame = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = frame.data;
+
+                // 3. Clear Main Canvas
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 4. Iterate pixels and draw text
+                for (let y = 0; y < tempCanvas.height; y++) {
+                    for (let x = 0; x < tempCanvas.width; x++) {
+                        const index = (y * tempCanvas.width + x) * 4;
+                        const r = data[index];
+                        const g = data[index + 1];
+                        const b = data[index + 2];
+
+                        // Calculate Brightness
+                        const brightness = (r + g + b) / 3;
+
+                        // Map brightness to character index
+                        const charIndex = Math.floor((brightness / 255) * (charsArr.length - 1));
+                        const char = charsArr[charsArr.length - 1 - charIndex]; // Invert for light-on-dark
+
+                        // Color Logic
+                        if (mode === 'matrix') {
+                            ctx.fillStyle = `rgb(0, ${brightness + 50}, 0)`; // Classic Green
+                        } else if (mode === 'cyber') {
+                            // RGB Split effect based on brightness
+                            if (brightness > 200) ctx.fillStyle = '#fff';
+                            else if (brightness > 100) ctx.fillStyle = '#0ff'; // Cyan
+                            else ctx.fillStyle = '#f0f'; // Magenta
+                        } else {
+                            // Binary Mode (Green High Contrast)
+                            ctx.fillStyle = brightness > 128 ? '#0f0' : '#050';
+                        }
+
+                        // Draw Character
+                        ctx.fillText(char, x * FONT_SIZE, y * FONT_SIZE);
+                    }
+                }
+
+                animationId = requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        setupCamera();
+
+    </script>
+</body>
+
+</html>
