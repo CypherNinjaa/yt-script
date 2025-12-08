@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mech Spider | 60SecondDev</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            background-color: #050505;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            color: rgba(0, 255, 136, 0.8);
+            background: rgba(0, 20, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #00ff88;
+            backdrop-filter: blur(4px);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        p {
+            margin: 5px 0 0;
+            font-size: 0.7rem;
+            color: #aaa;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="ui">
+        <h1>Procedural Animation</h1>
+        <p>Inverse Kinematics (IK)</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+        // --- CONFIGURATION ---
+        const LEG_COUNT = 8;
+        const SEGMENT_LEN = 60;
+        const BODY_RADIUS = 40;
+        const STEP_DISTANCE = 120; // How far body moves before leg steps
+        const STEP_HEIGHT = 30;
+        const SPEED = 0.15; // Leg move speed
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- IK MATH ---
+        // Calculate the "Elbow" position given a Shoulder and a Hand (Foot)
+        function solveIK(p1, p2, len1, len2, flip) {
+            const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+            const d = Math.min(dist, len1 + len2); // Clamp reach
+
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+
+            // Law of Cosines to find the elbow angle
+            const cosAngle = (d * d + len1 * len1 - len2 * len2) / (2 * d * len1);
+            const theta = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+
+            const flipSign = flip ? 1 : -1;
+
+            return {
+                x: p1.x + Math.cos(angle + theta * flipSign) * len1,
+                y: p1.y + Math.sin(angle + theta * flipSign) * len1
+            };
+        }
+
+        // --- LEG CLASS ---
+        class Leg {
+            constructor(id, angleOffset, flip) {
+                this.id = id;
+                this.angleOffset = angleOffset;
+                this.flip = flip; // Bend knee left or right
+
+                // Positions
+                this.shoulder = { x: 0, y: 0 };
+                this.elbow = { x: 0, y: 0 };
+                this.foot = { x: 0, y: 0 };     // Current foot visual pos
+                this.target = { x: 0, y: 0 };   // Ideal foot position
+                this.stepStart = { x: 0, y: 0 };// Where step began
+
+                // Animation State
+                this.isStepping = false;
+                this.stepProgress = 0;
+            }
+
+            update(bodyX, bodyY, bodyAngle) {
+                // 1. Calculate Shoulder Position (attached to body)
+                this.shoulder.x = bodyX + Math.cos(bodyAngle + this.angleOffset) * BODY_RADIUS;
+                this.shoulder.y = bodyY + Math.sin(bodyAngle + this.angleOffset) * BODY_RADIUS;
+
+                // 2. Calculate Ideal Target (Where foot WANTS to be)
+                // Resting distance is outward from shoulder
+                const restLen = SEGMENT_LEN * 1.8;
+                const idealX = bodyX + Math.cos(bodyAngle + this.angleOffset) * restLen;
+                const idealY = bodyY + Math.sin(bodyAngle + this.angleOffset) * restLen;
+
+                // 3. Check if we need to Step
+                const distToIdeal = Math.hypot(idealX - this.foot.x, idealY - this.foot.y);
+
+                // If foot is too far behind OR opposite leg is NOT stepping (Gait Control)
+                if (!this.isStepping && distToIdeal > STEP_DISTANCE) {
+                    // Start Step
+                    this.isStepping = true;
+                    this.stepStart = { ...this.foot };
+                    this.target = { x: idealX, y: idealY };
+                    this.stepProgress = 0;
+                }
+
+                // 4. Animate Step
+                if (this.isStepping) {
+                    this.stepProgress += SPEED;
+                    if (this.stepProgress >= 1) {
+                        this.stepProgress = 1;
+                        this.isStepping = false;
+                        this.foot = { ...this.target };
+                    } else {
+                        // Linear Interpolation (Lerp) for X/Y
+                        const lx = this.stepStart.x + (this.target.x - this.stepStart.x) * this.stepProgress;
+                        const ly = this.stepStart.y + (this.target.y - this.stepStart.y) * this.stepProgress;
+
+                        // Parabola for Z (Height lift)
+                        const lift = Math.sin(this.stepProgress * Math.PI) * STEP_HEIGHT;
+
+                        this.foot.x = lx;
+                        this.foot.y = ly - lift; // -Y is up
+                    }
+                }
+
+                // 5. Solve IK for Elbow
+                this.elbow = solveIK(this.shoulder, this.foot, SEGMENT_LEN, SEGMENT_LEN, this.flip);
+            }
+
+            draw() {
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+
+                // Draw Segments
+                ctx.beginPath();
+                ctx.moveTo(this.shoulder.x, this.shoulder.y);
+                ctx.lineTo(this.elbow.x, this.elbow.y);
+                ctx.lineTo(this.foot.x, this.foot.y);
+                ctx.stroke();
+
+                // Draw Joints
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(this.shoulder.x, this.shoulder.y, 4, 0, Math.PI * 2);
+                ctx.arc(this.elbow.x, this.elbow.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw Foot glow
+                ctx.fillStyle = this.isStepping ? '#fff' : '#00ff88';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ff88';
+                ctx.beginPath();
+                ctx.arc(this.foot.x, this.foot.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // --- SPIDER ENTITY ---
+        const legs = [];
+        // Body Position
+        let bx = window.innerWidth / 2;
+        let by = window.innerHeight / 2;
+
+        // Init Legs
+        for (let i = 0; i < LEG_COUNT; i++) {
+            // Distribute legs around circle
+            // Left side (PI/2 to 3PI/2), Right side (-PI/2 to PI/2)
+            // We want 4 on left, 4 on right
+
+            // Map 0-3 to left side, 4-7 to right side
+            const isRight = i >= LEG_COUNT / 2;
+            const sideIdx = i % (LEG_COUNT / 2);
+
+            // Angle spread
+            const spread = Math.PI / 2.5;
+            const baseAngle = isRight ? 0 : Math.PI;
+            const offset = -spread / 2 + (sideIdx * (spread / (LEG_COUNT / 2 - 1)));
+
+            const finalAngle = baseAngle + offset;
+
+            // Initialize feet at ideal positions
+            const leg = new Leg(i, finalAngle, !isRight);
+            leg.foot.x = bx + Math.cos(finalAngle) * (SEGMENT_LEN * 1.8);
+            leg.foot.y = by + Math.sin(finalAngle) * (SEGMENT_LEN * 1.8);
+            legs.push(leg);
+        }
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            // Clear
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+
+            // Move Body towards Mouse (Lerp)
+            bx += (mouse.x - bx) * 0.05;
+            by += (mouse.y - by) * 0.05;
+
+            // Calculate Body Angle based on movement
+            const angle = Math.atan2(mouse.y - by, mouse.x - bx);
+
+            // Draw Legs (Back legs first for depth)
+            legs.forEach(leg => {
+                leg.update(bx, by, angle - (Math.PI / 2)); // Rotate body to face movement
+                leg.draw();
+            });
+
+            // Draw Body
+            ctx.fillStyle = '#111';
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 3;
+
+            ctx.save();
+            ctx.translate(bx, by);
+            ctx.rotate(angle); // Face movement
+
+            // Body Shape
+            ctx.beginPath();
+            ctx.ellipse(0, 0, BODY_RADIUS, BODY_RADIUS * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Head
+            ctx.fillStyle = '#00ff88';
+            ctx.beginPath();
+            ctx.arc(15, -10, 4, 0, Math.PI * 2); // Eye L
+            ctx.arc(15, 10, 4, 0, Math.PI * 2);  // Eye R
+            ctx.fill();
+
+            ctx.restore();
+
+            // Draw Mouse Target
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.beginPath();
+            ctx.moveTo(mouse.x - 10, mouse.y);
+            ctx.lineTo(mouse.x + 10, mouse.y);
+            ctx.moveTo(mouse.x, mouse.y - 10);
+            ctx.lineTo(mouse.x, mouse.y + 10);
+            ctx.stroke();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Input
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        window.addEventListener('touchmove', e => {
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            e.preventDefault();
+        }, { passive: false });
+
+        animate();
+
+    </script>
+</body>
+
+</html>

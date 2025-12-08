@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumina | Elegant Login</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        :root {
+            --primary: #fff;
+            --accent: #bca1ff;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --border: rgba(255, 255, 255, 0.15);
+            --blur: 15px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #080a10;
+            color: white;
+            position: relative;
+        }
+
+        /* --- ANIMATED BACKGROUND BLOBS --- */
+        .background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.6;
+            animation: float 10s infinite alternate;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(180deg, #7b2cbf, #3a0ca3);
+            top: -100px;
+            left: -100px;
+            animation-duration: 15s;
+        }
+
+        .blob-2 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(180deg, #4cc9f0, #4361ee);
+            bottom: -50px;
+            right: -50px;
+            animation-duration: 12s;
+            animation-delay: -2s;
+        }
+
+        .blob-3 {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(180deg, #f72585, #b5179e);
+            bottom: 20%;
+            left: 20%;
+            animation-duration: 18s;
+            animation-delay: -5s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            100% {
+                transform: translate(50px, 50px) scale(1.1);
+            }
+        }
+
+        /* --- GLASS CARD --- */
+        .login-card {
+            position: relative;
+            z-index: 10;
+            width: 400px;
+            padding: 50px 40px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--blur));
+            -webkit-backdrop-filter: blur(var(--blur));
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            transform-style: preserve-3d;
+            animation: cardEntrance 1s ease forwards;
+            opacity: 0;
+            transform: translateY(30px);
+            margin-top: 60px;
+            /* Space for the mascot */
+        }
+
+        @keyframes cardEntrance {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- MASCOT STYLES --- */
+        .mascot-container {
+            position: absolute;
+            top: -90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 100px;
+            animation: mascotFloat 4s ease-in-out infinite;
+            z-index: 20;
+        }
+
+        @keyframes mascotFloat {
+
+            0%,
+            100% {
+                transform: translateX(-50%) translateY(0);
+            }
+
+            50% {
+                transform: translateX(-50%) translateY(-15px);
+            }
+        }
+
+        .mascot-head {
+            width: 80px;
+            height: 70px;
+            background: linear-gradient(135deg, #fff, #e0e0e0);
+            border-radius: 20px;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2), inset 0 -5px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Antenna */
+        .mascot-head::before {
+            content: '';
+            position: absolute;
+            top: -15px;
+            width: 4px;
+            height: 15px;
+            background: #ccc;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .mascot-head::after {
+            content: '';
+            position: absolute;
+            top: -22px;
+            width: 12px;
+            height: 12px;
+            background: #ff0055;
+            border-radius: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 10px #ff0055;
+            animation: antennaPulse 2s infinite;
+        }
+
+        @keyframes antennaPulse {
+
+            0%,
+            100% {
+                transform: translateX(-50%) scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: translateX(-50%) scale(1.2);
+                opacity: 0.8;
+            }
+        }
+
+        /* Face Screen */
+        .face {
+            width: 60px;
+            height: 40px;
+            background: #000;
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Eyes */
+        .eye {
+            width: 8px;
+            height: 12px;
+            background: #00f3ff;
+            border-radius: 4px;
+            animation: blink 4s infinite;
+            box-shadow: 0 0 8px #00f3ff;
+        }
+
+        @keyframes blink {
+
+            0%,
+            48%,
+            52%,
+            100% {
+                transform: scaleY(1);
+            }
+
+            50% {
+                transform: scaleY(0.1);
+            }
+        }
+
+        /* Body (Subtle) */
+        .mascot-body {
+            width: 50px;
+            height: 30px;
+            background: linear-gradient(135deg, #ddd, #bbb);
+            margin: -5px auto 0;
+            border-radius: 0 0 20px 20px;
+            position: relative;
+            z-index: -1;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .login-header h2 {
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .login-header p {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        /* --- INPUT GROUPS --- */
+        .input-group {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px 0;
+            font-size: 1rem;
+            color: #fff;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            outline: none;
+            transition: 0.3s;
+        }
+
+        .input-group label {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            transition: 0.3s ease all;
+        }
+
+        /* Focus Effects */
+        .input-group input:focus,
+        .input-group input:valid {
+            border-bottom-color: var(--accent);
+        }
+
+        .input-group input:focus~label,
+        .input-group input:valid~label {
+            top: -20px;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        .icon {
+            position: absolute;
+            right: 0;
+            top: 10px;
+            color: white;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: 0.3s;
+        }
+
+        .icon:hover {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        /* --- ACTIONS --- */
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            margin-bottom: 30px;
+        }
+
+        .actions label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        .actions input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--accent);
+        }
+
+        .forgot-pass {
+            color: #fff;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: 0.3s;
+        }
+
+        .forgot-pass:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* --- BUTTON --- */
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #3a0ca3, #f72585);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 10px 20px rgba(247, 37, 133, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(247, 37, 133, 0.5);
+        }
+
+        /* --- SOCIAL LOGIN --- */
+        .social-login {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .social-login p {
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            opacity: 0.7;
+            position: relative;
+        }
+
+        .social-login p::before,
+        .social-login p::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 30%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .social-login p::before {
+            left: 0;
+        }
+
+        .social-login p::after {
+            right: 0;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .social-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .social-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+        }
+
+        .footer-text a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Animated Background -->
+    <div class="background">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="login-card">
+        <!-- Cute Mascot Character -->
+        <div class="mascot-container">
+            <div class="mascot-head">
+                <div class="face">
+                    <div class="eye"></div>
+                    <div class="eye"></div>
+                </div>
+            </div>
+            <div class="mascot-body"></div>
+        </div>
+
+        <div class="login-header">
+            <h2>Welcome Back</h2>
+            <p>Enter your credentials to access the cosmos.</p>
+        </div>
+
+        <form onsubmit="event.preventDefault(); alert('Logged In!');">
+
+            <div class="input-group">
+                <input type="email" id="email" required>
+                <label for="email">Email Address</label>
+                <i class="fas fa-envelope icon"></i>
+            </div>
+
+            <div class="input-group">
+                <input type="password" id="password" required>
+                <label for="password">Password</label>
+                <i class="fas fa-eye icon" id="togglePassword"></i>
+            </div>
+
+            <div class="actions">
+                <label>
+                    <input type="checkbox"> Remember me
+                </label>
+                <a href="#" class="forgot-pass">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="btn-login">Sign In</button>
+
+            <div class="social-login">
+                <p>Or continue with</p>
+                <div class="social-icons">
+                    <div class="social-btn"><i class="fab fa-google"></i></div>
+                    <div class="social-btn"><i class="fab fa-apple"></i></div>
+                    <div class="social-btn"><i class="fab fa-github"></i></div>
+                </div>
+            </div>
+
+            <p class="footer-text">Don't have an account? <a href="#">Sign Up</a></p>
+        </form>
+    </div>
+
+    <script>
+        // Password Visibility Toggle
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function () {
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+
+            // Toggle Icon
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+
+        // Add 3D Tilt Effect to Card AND Mascot
+        const card = document.querySelector('.login-card');
+        const eyes = document.querySelectorAll('.eye');
+
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 25;
+            const y = (window.innerHeight / 2 - e.pageY) / 25;
+            // Limit tilt for subtle effect
+            card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+
+            // Make eyes follow mouse slightly
+            const eyeX = (e.pageX - window.innerWidth / 2) / 20;
+            const eyeY = (e.pageY - window.innerHeight / 2) / 20;
+            eyes.forEach(eye => {
+                eye.style.transform = `translate(${eyeX}px, ${eyeY}px)`;
+            });
+        });
+
+        // Reset tilt when mouse leaves
+        document.addEventListener('mouseleave', () => {
+            card.style.transform = `rotateY(0deg) rotateX(0deg)`;
+            eyes.forEach(eye => {
+                eye.style.transform = `translate(0, 0)`;
+            });
+        });
+    </script>
+</body>
+
+</html>
